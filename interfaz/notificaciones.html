@@ -1,0 +1,52 @@
+<link rel="stylesheet" href="style.css">
+
+<li id="li-tracker-ao3" class="dropdown">
+    <a href="#">Tracker AO3</a>
+    <ul class="menu dropdown-menu">
+        
+        <li class="heading heading-tracker">Notificaciones</li>
+
+        <li class="action-bar action-bar-top">
+            <a href="#" class="nav-btn-notis nav-link nav-link-red">Notificaciones</a>
+            <a href="#" class="nav-btn-seguidos nav-link nav-link-red">Seguidos</a>
+            <a href="#" class="nav-btn-config nav-link nav-link-gray">⚙️ Config</a>
+        </li>
+
+        <div id="lista-notificaciones">
+            <li class="loading-text" style="padding:20px; text-align:center; color:#999; list-style:none;">
+                Cargando...
+            </li>
+        </div>
+
+        <li class="action-bar action-bar-bottom">
+            <a href="#" class="nav-btn-notis nav-link nav-link-red">Notificaciones</a>
+            <a href="#" class="nav-btn-seguidos nav-link nav-link-red">Seguidos</a>
+        </li>
+
+        <li class="footer-tracker">
+            AO3 Tracker Griyo Edition<br>
+            <span style="opacity:0.8; font-size:10px;">© 2026 Griyo.</span>
+        </li>
+
+        <div id="molde-contenedor" class="hidden-template">
+            <li class="fic-notif-item">
+                <div class="fic-header">
+                    <a href="#" class="fic-link" target="_blank"></a>
+                    <span class="fic-cap"></span>
+                </div>
+                
+                <div class="fic-actions">
+                    <a href="#" class="btn-detalles btn-fic">Detalles</a>
+                    <a href="#" class="btn-leer btn-fic">Marcar</a>
+                    <a href="#" class="btn-eliminar btn-fic">Quitar</a>
+                </div>
+
+                <div class="fic-info-extra">
+                    <div class="info-line"><strong>Fandom:</strong> <span class="txt-fandom"></span></div>
+                    <div class="info-line"><strong>Ship:</strong> <span class="txt-ship"></span></div>
+                    <div class="txt-sumario"></div>
+                </div>
+            </li>
+        </div>
+    </ul>
+</li>

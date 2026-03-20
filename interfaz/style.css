@@ -1,0 +1,171 @@
+/* style.css */
+
+/* Contenedor principal del menú */
+#li-tracker-ao3 .dropdown-menu {
+    width: 420px !important;
+    max-height: 500px !important;
+    overflow-y: auto !important;
+    border: 1px solid #ccc !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+    list-style: none !important;
+}
+
+/* Encabezados */
+#li-tracker-ao3 .heading-tracker {
+    background: #990000 !important;
+    color: white !important;
+    padding: 10px !important;
+    font-weight: bold !important;
+    text-align: center !important;
+    font-size: 14px !important;
+    display: block !important;
+}
+
+/* Barras de navegación */
+#li-tracker-ao3 .action-bar {
+    padding: 8px !important;
+    display: flex !important;
+    justify-content: space-around !important;
+    background: #f0f0f0 !important;
+    list-style: none !important;
+}
+
+.action-bar-top { border-bottom: 1px solid #ddd !important; }
+.action-bar-bottom { border-top: 1px solid #ddd !important; }
+
+#li-tracker-ao3 .nav-link {
+    font-size: 11px !important;
+    font-weight: bold !important;
+    text-decoration: none !important;
+}
+
+.nav-link-red { color: #900 !important; }
+.nav-link-gray { color: #444 !important; }
+
+/* Tarjetas de Fics */
+.fic-notif-item {
+    padding: 15px !important;
+    border: 1px solid #ddd !important;
+    border-radius: 5px !important;
+    background: white !important;
+    list-style: none !important;
+    display: block !important;
+    margin: 10px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+}
+
+/* Cabecera del Fic (Título y Cap) */
+.fic-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+    border: none !important;
+}
+
+.fic-link {
+    font-weight: bold !important;
+    color: #900 !important;
+    text-decoration: none !important;
+    font-size: 14px !important;
+    flex: 1;
+}
+
+.fic-cap {
+    font-size: 11px !important;
+    background: #900 !important;
+    color: white !important;
+    padding: 3px 8px !important;
+    border-radius: 12px !important;
+    font-weight: bold !important;
+    white-space: nowrap !important;
+}
+
+/* Botones Horizontales */
+.fic-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 15px !important;
+    margin-top: 12px !important;
+    border: none !important;
+}
+
+.btn-fic {
+    font-size: 11px !important;
+    font-weight: bold !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    display: inline-block !important;
+}
+
+.btn-detalles { color: #0056b3 !important; }
+.btn-leer { color: #28a745 !important; }
+.btn-eliminar { color: #900 !important; }
+
+/* Panel de Detalles (Limpieza de líneas intrusas) */
+.fic-info-extra {
+    display: none; /* Controlado por JS */
+    font-size: 12px !important;
+    margin-top: 15px !important;
+    padding: 12px !important;
+    border-radius: 4px !important;
+    border: 1px solid #eee !important;
+    border-left: 4px solid #900 !important;
+    background: #fafafa !important;
+    color: #333 !important;
+}
+
+/* Reset de líneas para elementos internos de detalles */
+.fic-info-extra, .fic-info-extra * {
+    border-bottom: none !important;
+    border-top: none !important;
+    text-decoration: none !important;
+}
+
+.info-line { 
+    margin-bottom: 8px !important;
+    display: block !important;
+    padding: 0 !important;
+    line-height: 1.4 !important;
+    border: none !important;
+}
+
+.info-line strong {
+    color: #900 !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    margin-right: 5px;
+}
+
+.txt-sumario {
+    margin-top: 10px !important;
+    padding-top: 10px !important;
+    border-top: 1px dashed #ccc !important;
+    font-style: italic !important;
+    display: block !important;
+}
+
+/* Footer */
+.footer-tracker {
+    background: #990000 !important;
+    color: white !important;
+    padding: 12px 10px !important;
+    font-size: 11px !important;
+    text-align: center !important;
+    display: block !important;
+}
+
+.hidden-template { display: none !important; }
+
+/* --- ESTILOS PARA LA VISTA DE SEGUIDOS --- */
+.tema-seguidos .heading-tracker, 
+.tema-seguidos .footer-tracker { background: #2b580c !important; }
+.tema-seguidos .fic-link { color: #2b580c !important; }
+.tema-seguidos .fic-cap { background: #2b580c !important; }
+.tema-seguidos .fic-info-extra { border-left-color: #2b580c !important; }
+.tema-seguidos .info-line strong { color: #2b580c !important; }

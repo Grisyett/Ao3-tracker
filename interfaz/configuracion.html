@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: sans-serif; padding: 40px; background-color: #f4f4f4; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 8px; }
+    h1 { color: #990000; }
+    input { width: 100%; padding: 10px; margin: 10px 0; }
+    button { background: #990000; color: white; padding: 10px; border: none; width: 100%; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Configuración AO3 Tracker</h1>
+    <p>Pega la URL de tu Web App de Google Sheets:</p>
+    <input type="text" id="urlInput" placeholder="https://script.google.com/...">
+    <button id="saveBtn">Guardar y Vincular</button>
+    <p id="status"></p>
+  </div>
+  <script src="../ui_logic.js"></script>
+</body>
+</html>
