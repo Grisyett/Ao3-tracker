@@ -191,24 +191,48 @@ window.recuperarYMostrarNotificaciones = function() {
         window.renderizarLista(lista, esPestañaSeguidos);
     });
 };
-window.eliminarDato = function(id, storageKey,numCap, index) {
-    chrome.storage.local.get([storageKey, "webAppUrl"], (data) => {
+window.eliminarDato = function(id, storageKey, numCap, index) {
+    // Pedimos también 'eliminadosIds' al storage
+    chrome.storage.local.get([storageKey, "webAppUrl", "eliminadosIds"], (data) => {
         let lista = data[storageKey] || [];
+        let eliminados = data.eliminadosIds || [];
+
         if (storageKey === "misNotificaciones") {
-            lista.splice(index, 1);
-        } else {
-            lista = lista.filter(f => f.ficId != id);
-        }
-        chrome.storage.local.set({ [storageKey]: lista }, () => {
-            window.recuperarYMostrarNotificaciones();
-            if (storageKey === "misSeguidos" && data.webAppUrl) {
-                fetch(data.webAppUrl, {
-                    method: "POST", mode: "no-cors",
-                    body: JSON.stringify({ action: "dejar_de_seguir", ficId: id })
-                });
+            // 1. Si es una notificación, lo añadimos a la lista negra
+            if (!eliminados.includes(id)) {
+                eliminados.push(id);
             }
-            chrome.runtime.sendMessage({ action: "actualizar_badge_manual" });
-        });
+            // 2. Lo quitamos de la vista actual
+            lista.splice(index, 1);
+            
+            // 3. Guardamos ambos cambios
+            chrome.storage.local.set({ 
+    "misNotificaciones": lista, 
+    "eliminadosIds": eliminados 
+}, () => {
+    // --- LOG DE DEPURACIÓN ---
+    console.log("ID añadido a la Lista Negra:", id);
+    console.log("Estado actual de eliminadosIds:", eliminados);
+    
+    window.recuperarYMostrarNotificaciones();
+    chrome.runtime.sendMessage({ action: "actualizar_badge_manual" });
+});
+
+        } else {
+            // Lógica normal para Seguidos (Dejar de seguir)
+            lista = lista.filter(f => f.ficId != id);
+            chrome.storage.local.set({ [storageKey]: lista }, () => {
+                window.recuperarYMostrarNotificaciones();
+                if (data.webAppUrl) {
+                    fetch(data.webAppUrl, {
+                        method: "POST", 
+                        mode: "no-cors",
+                        body: JSON.stringify({ action: "dejar_de_seguir", ficId: id })
+                    });
+                }
+                chrome.runtime.sendMessage({ action: "actualizar_badge_manual" });
+            });
+        }
     });
 };
 

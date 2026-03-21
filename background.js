@@ -1,7 +1,9 @@
-// background.js - Versión con Logs de Depuración
+// background.js - Versión Unificada: Lista Negra + Resurrección por Capítulos
 
 async function consultarServidorExcel() {
-  const data = await chrome.storage.local.get(['webAppUrl', 'misNotificaciones', 'misSeguidos']);
+  // Añadimos 'eliminadosIds' a la carga de datos inicial
+  const data = await chrome.storage.local.get(['webAppUrl', 'misNotificaciones', 'misSeguidos', 'eliminadosIds']);
+  
   if (!data.webAppUrl) {
     console.warn("AO3 Tracker: No hay URL de WebApp configurada.");
     return;
@@ -16,91 +18,111 @@ async function consultarServidorExcel() {
     const response = await fetch(urlFinal);
     const result = await response.json();
     
-    console.log("DATOS RECIBIDOS DEL EXCEL:", result.fics);
-    
     if (result.fics && result.fics.length > 0) {
       let notisActuales = data.misNotificaciones || [];
       let seguidosActuales = data.misSeguidos || [];
+      let eliminados = data.eliminadosIds || []; 
       let huboCambios = false;
       
       result.fics.forEach(nuevoFic => {
-        // ACTUALIZAR EN NOTIFICACIONES
         const idxNoti = notisActuales.findIndex(f => f.ficId === nuevoFic.ficId);
+        const yaEstaEnListaNegra = eliminados.includes(nuevoFic.ficId);
+
+        // --- LÓGICA DE LISTA NEGRA Y RESURRECCIÓN ---
+        if (yaEstaEnListaNegra) {
+          const ficPrevio = notisActuales[idxNoti];
+          // Si el fic actualizado tiene más capítulos que el que ocultamos, lo "resucitamos"
+          if (ficPrevio && nuevoFic.capitulo !== ficPrevio.capitulo) {
+            console.log(`RESURRECCIÓN: ${nuevoFic.titulo} tiene nuevos capítulos. Saliendo de lista negra.`);
+            eliminados = eliminados.filter(id => id !== nuevoFic.ficId);
+            // Al salir de la lista negra, el código de abajo lo tratará como una actualización normal
+          } else {
+            // Si no ha cambiado capítulos, ignoramos este fic completamente
+            return; 
+          }
+        }
+
+        // --- ACTUALIZAR EN NOTIFICACIONES ---
         if (idxNoti !== -1) {
-          // Actualiza los datos manteniendo el estado 'leido' local
-          notisActuales[idxNoti] = { ...notisActuales[idxNoti], ...nuevoFic };
-          huboCambios = true;
-        } else if (result.update) {
+          // Si hay cambio de capítulos, lo marcamos como no leído
+          if (notisActuales[idxNoti].capitulo !== nuevoFic.capitulo) {
+            console.log(`ACTUALIZACIÓN: ${nuevoFic.titulo} (${notisActuales[idxNoti].capitulo} -> ${nuevoFic.capitulo})`);
+            notisActuales[idxNoti] = { 
+              ...notisActuales[idxNoti], 
+              ...nuevoFic, 
+              leido: false,
+              fecha: new Date().toISOString() 
+            };
+            huboCambios = true;
+          } else {
+            // Actualización silenciosa de otros datos (fandom, ship, etc)
+            notisActuales[idxNoti] = { ...notisActuales[idxNoti], ...nuevoFic };
+          }
+        } else {
+          // Es un fic totalmente nuevo que no conocíamos
+          console.log(`NUEVA ENTRADA: ${nuevoFic.titulo}`);
           notisActuales.unshift({
             ...nuevoFic,
             leido: false,
             fecha: nuevoFic.fecha || new Date().toISOString()
           });
           huboCambios = true;
-          console.log(`NUEVA NOTIFICACIÓN: ${nuevoFic.titulo}`);
         }
 
-        // ACTUALIZAR EN SEGUIDOS
+        // --- ACTUALIZAR EN SEGUIDOS ---
         const idxSeg = seguidosActuales.findIndex(f => f.ficId === nuevoFic.ficId);
         if (idxSeg !== -1) {
-          seguidosActuales[idxSeg] = { ...seguidosActuales[idxSeg], ...nuevoFic };
-          huboCambios = true;
-          console.log(`ACTUALIZADO EN SEGUIDOS: ${nuevoFic.titulo}`);
+          if (seguidosActuales[idxSeg].capitulo !== nuevoFic.capitulo) {
+            seguidosActuales[idxSeg] = { ...seguidosActuales[idxSeg], ...nuevoFic };
+            huboCambios = true;
+          }
         }
       });
 
       if (huboCambios) {
+        // Mantener historial manejable
+        if (notisActuales.length > 50) notisActuales = notisActuales.slice(0, 50);
+
         await chrome.storage.local.set({ 
           "misNotificaciones": notisActuales,
-          "misSeguidos": seguidosActuales
+          "misSeguidos": seguidosActuales,
+          "eliminadosIds": eliminados
         });
         
         actualizarBadge(notisActuales);
-       
+        
         chrome.runtime.sendMessage({ action: "refrescar_interfaz_ao3" }).catch(() => {
-          console.log("AO3 Tracker: No hay pestañas activas para refrescar.");
+          // Ignorar error si no hay pestañas abiertas
         });
       }
-    } else {
-      console.log("AO3 Tracker: No se recibieron fics o la lista está vacía.");
     }
   } catch (error) {
-    console.error("Error de conexión con Google:", error);
+    console.error("AO3 Tracker Error:", error);
   }
 }
 
-// FUNCIÓN PARA EL BADGE
+// --- RESTO DE FUNCIONES (Badge, Alarms, Listeners) ---
+
 function actualizarBadge(lista) {
   if (!chrome.action) return; 
-  
-  const listaSegura = lista || [];
-  const noLeidos = listaSegura.filter(f => f.leido === false).length;
-  
-  chrome.action.setBadgeText({ 
-    text: noLeidos > 0 ? noLeidos.toString() : "" 
-  });
-  
+  const noLeidos = (lista || []).filter(f => f.leido === false).length;
+  chrome.action.setBadgeText({ text: noLeidos > 0 ? noLeidos.toString() : "" });
   chrome.action.setBadgeBackgroundColor({ color: "#990000" });
 }
 
-// Escuchar mensajes de ui_logic.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "actualizar_badge_manual") {
     chrome.storage.local.get("misNotificaciones", (data) => {
       actualizarBadge(data.misNotificaciones || []);
-      // Aprovecha para disparar una consulta al Excel si el usuario abre el menú
       consultarServidorExcel();
     });
   }
 });
 
-// Alarmas para actualización periódica (5 min)
 chrome.alarms.create("checkUpdates", { periodInMinutes: 5 });
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "checkUpdates") {
-    console.log("AO3 Tracker: Alarma activada, sincronizando...");
-    consultarServidorExcel();
-  }
+  if (alarm.name === "checkUpdates") consultarServidorExcel();
 });
 
+// Ejecución al iniciar
 consultarServidorExcel();
