@@ -24,28 +24,37 @@
         </li>
 
         <li class="footer-tracker">
-            AO3 Tracker Griyo Edition<br>
+            AO3 Tracker<br>
             <span style="opacity:0.8; font-size:10px;">© 2026 Griyo.</span>
         </li>
 
         <div id="molde-contenedor" class="hidden-template">
-            <li class="fic-notif-item">
-                <div class="fic-header">
-                    <a href="#" class="fic-link" target="_blank"></a>
-                    <span class="fic-cap"></span>
-                </div>
+    <li class="fic-notif-item">
+        <div class="fic-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
+            
+            <a href="#" class="fic-link" target="_blank" style="flex: 1; font-weight: bold; text-decoration: none; color: #900;"></a>
+            
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                <span class="fic-cap" style="background: #2b580c; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; white-space: nowrap;"></span>
                 
-                <div class="fic-actions">
-                    <a href="#" class="btn-detalles btn-fic">Detalles</a>
-                    <a href="#" class="btn-eliminar btn-quitar-seguido">Dejar de seguir</a>
+                <div class="progreso-seguidos" style="font-size: 10px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                    <span class="txt-leido-hasta" style="color: #000000; font-weight: bold; margin-top: 8px;"></span>
+                    <span class="txt-pendientes"></span>
                 </div>
-
-                <div class="fic-info-extra">
-                    <div class="info-line"><strong>Fandom:</strong> <span class="txt-fandom"></span></div>
-                    <div class="info-line"><strong>Ship:</strong> <span class="txt-ship"></span></div>
-                    <div class="txt-sumario"></div>
-                </div>
-            </li>
+            </div>
         </div>
+        
+        <div class="fic-actions" style="margin-top: 2px;">
+            <a href="#" class="btn-detalles btn-fic">Detalles</a>
+            <a href="#" class="btn-eliminar btn-fic">Dejar de seguir</a>
+        </div>
+
+        <div class="fic-info-extra">
+            <div class="info-line"><strong>Fandom:</strong> <span class="txt-fandom"></span></div>
+            <div class="info-line"><strong>RelacionShip:</strong> <span class="txt-ship"></span></div>
+            <div class="txt-sumario"></div>
+        </div>
+    </li>
+</div>
     </ul>
 </li>

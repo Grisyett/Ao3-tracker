@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "AO3 Tracker Griyo Edition",
+  "name": "AO3 Tracker Griyo Edition-BETA",
   "version": "1.3",
   "permissions": [
     "storage",
@@ -13,7 +13,7 @@
     "https://script.googleusercontent.com/*"
   ],
   "action": {
-    "default_title": "AO3 Tracker"
+    "default_title": "AO3 Tracker-BETA"
   },
   "background": {
     "service_worker": "background.js"

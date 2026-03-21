@@ -107,7 +107,7 @@
 .btn-leer { color: #28a745 !important; }
 .btn-eliminar { color: #900 !important; }
 
-/* Panel de Detalles (Limpieza de líneas intrusas) */
+/* Panel de Detalles */
 .fic-info-extra {
     display: none; /* Controlado por JS */
     font-size: 12px !important;
@@ -118,6 +118,8 @@
     border-left: 4px solid #900 !important;
     background: #fafafa !important;
     color: #333 !important;
+    max-height: 350px !important;
+    overflow-y: auto !important;
 }
 
 /* Reset de líneas para elementos internos de detalles */
@@ -148,6 +150,11 @@
     border-top: 1px dashed #ccc !important;
     font-style: italic !important;
     display: block !important;
+    
+    /* Reglas críticas para los saltos de línea */
+    white-space: pre-line !important; 
+    word-wrap: break-word !important;
+    line-height: 1.5 !important;
 }
 
 /* Footer */
@@ -164,8 +171,8 @@
 
 /* --- ESTILOS PARA LA VISTA DE SEGUIDOS --- */
 .tema-seguidos .heading-tracker, 
-.tema-seguidos .footer-tracker { background: #2b580c !important; }
-.tema-seguidos .fic-link { color: #2b580c !important; }
-.tema-seguidos .fic-cap { background: #2b580c !important; }
-.tema-seguidos .fic-info-extra { border-left-color: #2b580c !important; }
-.tema-seguidos .info-line strong { color: #2b580c !important; }
+.tema-seguidos .footer-tracker { background: #580c0c !important; }
+.tema-seguidos .fic-link { color: #580c0c !important; }
+.tema-seguidos .fic-cap { background: #580c0c !important; }
+.tema-seguidos .fic-info-extra { border-left-color: #580c0c !important; }
+.tema-seguidos .info-line strong { color: #580c0c !important; }
