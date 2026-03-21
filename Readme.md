@@ -41,19 +41,20 @@ No necesitas programar el backend. Copia la **Plantilla Maestra** que ya incluye
 
 1. **Copia la Plantilla:** Haz clic en [este enlace de la Plantilla Maestra](https://docs.google.com/spreadsheets/d/1vd1UlqOvEnscoWE-wfRHKgdQ4kEA2wov4RUTmCEJoJU/edit?usp=sharing) y selecciona `Archivo > Hacer una copia`.
 2. **Accede al Script:** En tu nueva copia de Excel, ve a `Extensiones > Apps Script`. Allí verás el código que gestiona la lógica.
-3. **Configuración de codigo puente:**
-    -Ve a biblioteca, copia y busca este ID de la biblioteca: `1gy3mpZP4tfJT9pzuH_J3dAtyGnNyUbmNXDPVHPW6o_JnY3bv8JodWERz`
-    -Asegurese de usar la ultima versión disponible.
-    -Copie y reemplace el codigo que trae por defecto al copiar la hoja de calculo por el **codigo puente** que lo puede encontrar en: `Se subira más tarde`
-    -Ejecute por primera vez usando la funcion `onOpen` seleccionandolo en el select al lado del boton de Depuración y autorice los permisos solicitados **(Aparecera el aviso de que no es seguro pero no te preocupes por eso, es un aviso porque como tal no esta verificada por google, pero el codigo base y lo que hace lo puedes verificar en el repositorio)**
-    -Seleccione en **Configuración Avanzada** y luego a **Ir a AO3_Engine_Core** acepte los permisos.
-    -Revisa que ahora tengas una nueva opción en la hoja de calculo llamada **🚀 AO3 Tracker**
 
-3. **Configuración de la API:** - Haz clic en el botón azul **Implementar > Nueva implementación**.
+3. **Configuración de codigo puente:**
+    - Ve a biblioteca, copia y busca este ID de la biblioteca: `1gy3mpZP4tfJT9pzuH_J3dAtyGnNyUbmNXDPVHPW6o_JnY3bv8JodWERz`
+    - Asegurese de usar la ultima versión disponible.
+    - Copie y reemplace el codigo que trae por defecto al copiar la hoja de calculo por el **codigo puente** que lo puede encontrar en: `Se subira más tarde`
+    - Ejecute por primera vez usando la funcion `onOpen` seleccionandolo en el select al lado del boton de Depuración y autorice los permisos solicitados **(Aparecera el aviso de que no es seguro pero no te preocupes por eso, es un aviso porque como tal no esta verificada por google, pero el codigo base y lo que hace lo puedes verificar en el repositorio)**
+    - Seleccione en **Configuración Avanzada** y luego a **Ir a AO3_Engine_Core** acepte los permisos.
+    - Revisa que ahora tengas una nueva opción en la hoja de calculo llamada **🚀 AO3 Tracker**
+
+4. **Configuración de la API:** - Haz clic en el botón azul **Implementar > Nueva implementación**.
    - Selecciona Tipo: **Aplicación web**.
    - Configura **"Ejecutar como":** `Yo` (tu cuenta).
    - Configura **"Quién tiene acceso":** `Cualquiera`. *(Esto permite que tu extensión envíe datos a tu hoja).*
-4. **Copia la URL:** Guarda la URL de la aplicación web que termina en `/exec`.
+5. **Copia la URL:** Guarda la URL de la aplicación web que termina en `/exec`.
 
 ### 2. La Extensión (Interfaz de Usuario)
 1. **Descarga:** Baja el archivo `.zip` de la última [Release](link_a_releases) y descomprímelo en una carpeta.
