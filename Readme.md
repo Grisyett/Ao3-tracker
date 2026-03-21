@@ -2,7 +2,7 @@
 
 Current Status: v1.3-beta
 
-Una extensión de navegador diseñada para rastrear actualizaciones de fanfics en **Archive of Our Own (AO3)** con un enfoque de **Privacidad Total**. 
+Una extensión de navegador diseñada para rastrear actualizaciones de fanfics en **Archive of Our Own (AO3)** para mostrarlas en una bandeja accesible en la misma página con un enfoque de **Privacidad Total**. 
 
 **No se guardan tus datos en servidores externos**.
 
@@ -14,6 +14,20 @@ Una extensión de navegador diseñada para rastrear actualizaciones de fanfics e
 - **Badge Dinámico:** Un contador visual integrado en el menú de AO3 que te indica cuántos capítulos hay pendientes.
 - **Estadísticas (a futuro):** 
 
+ Capturas:
+ -
+
+ -Bandeja de notificaciones.
+
+![Captura del menú](./img/Captura.PNG)
+
+-Hoja de Google Sheet con muestra de registros:
+
+![Captura de hoja de calculo](./img/Googlesheet.PNG)
+
+-Pagina de Google Apps Script con codigo puente:
+
+![App script codigo puente](./img/appscript.PNG)
 ---
 
 ## 🛠️ Instalación (Paso a Paso)

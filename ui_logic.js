@@ -191,7 +191,7 @@ window.recuperarYMostrarNotificaciones = function() {
         window.renderizarLista(lista, esPestañaSeguidos);
     });
 };
-window.eliminarDato = function(id, storageKey, index) {
+window.eliminarDato = function(id, storageKey,numCap, index) {
     chrome.storage.local.get([storageKey, "webAppUrl"], (data) => {
         let lista = data[storageKey] || [];
         if (storageKey === "misNotificaciones") {
@@ -212,9 +212,10 @@ window.eliminarDato = function(id, storageKey, index) {
     });
 };
 
-window.actualizarEstadoLeido = function(nuevoEstado, index) {
+window.actualizarEstadoLeido = function(id, numCap, nuevoEstado, index) {
     chrome.storage.local.get("misNotificaciones", (data) => {
         let lista = data.misNotificaciones || [];
+        // Usamos el index que nos llega del botón
         if (lista[index]) {
             lista[index].leido = nuevoEstado;
             chrome.storage.local.set({ "misNotificaciones": lista }, () => {
