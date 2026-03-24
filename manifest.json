@@ -1,38 +1,57 @@
 {
   "manifest_version": 3,
-  "name": "AO3 Tracker Griyo Edition-BETA",
-  "version": "1.3",
-  "permissions": ["storage", "alarms", "notifications"],
+  "name": "AO3 Tracker Griyo Edition",
+  "version": "1.4",
+  "description": "Seguimiento automático de fanfics y notificaciones de nuevos capítulos.",
+  
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications",
+    "action"
+  ],
+
   "host_permissions": [
     "https://archiveofourown.org/*",
     "https://script.google.com/*",
     "https://script.googleusercontent.com/*"
   ],
-  "background": {
-    "service_worker": "background.js"
+
+  "action": {
+    "default_title": "Griyo AO3 Tracker"
   },
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
   "content_scripts": [
-  {
-    "matches": ["https://archiveofourown.org/*"],
-    "css": ["interfaz/style.css"],
-    "js": [
-      "libs/alpine.csp.js", 
-      "ui_logic.js", 
-      "content_script.js"
-    ],
-    "run_at": "document_end" 
-  }
-],
+    {
+      "matches": ["https://archiveofourown.org/*"],
+      "css": ["interfaz/style.css"],
+      "js": [
+        "libs/alpine.csp.js", 
+        "ui_logic.js", 
+        "content_script.js"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+
   "web_accessible_resources": [
     {
       "resources": [
         "interfaz/*.html",
         "interfaz/*.css",
-        "interfaz/*.js",
         "ui_logic.js",
         "libs/alpine.csp.js"
       ],
       "matches": ["https://archiveofourown.org/*"]
+    },
+    {
+      "resources": ["interfaz/configuracion.html"],
+      "matches": ["<all_urls>"]
     }
   ]
 }

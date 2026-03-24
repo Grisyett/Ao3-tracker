@@ -1,9 +1,7 @@
-// ui_logic.js
+// ui_logic.js - Gestión de Interfaz y Sincronización Excel
 
-// Flag para evitar registro duplicado
 let trackerAppRegistered = false;
 
-// Registrar trackerApp inmediatamente para que esté disponible cuando Alpine lo necesite
 window.setupTrackerApp = () => ({
     registros: [],
     esSeguidos: false,
@@ -14,6 +12,14 @@ window.setupTrackerApp = () => ({
         const contenedorRaiz = document.getElementById('li-tracker-ao3');
         this.esSeguidos = contenedorRaiz ? contenedorRaiz.classList.contains('tema-seguidos') : false;
         await this.cargarDatos();
+
+        chrome.storage.onChanged.addListener((changes, area) => {
+            const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
+            if (area === 'local' && changes[key]) {
+                this.registros = changes[key].newValue || [];
+                if (window.actualizarContadorEnPagina) window.actualizarContadorEnPagina();
+            }
+        });
     },
 
     async cargarDatos() {
@@ -21,13 +27,12 @@ window.setupTrackerApp = () => ({
         const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
         const data = await chrome.storage.local.get(key);
         this.registros = Array.isArray(data[key]) ? data[key] : [];
-        console.log('[TrackerApp] Cargando datos:', key, 'Registros encontrados:', this.registros.length);
         this.loading = false;
     },
 
-    navNotificaciones() { window.cargarInterfaz('notificaciones'); },
-    navSeguidos() { window.cargarInterfaz('seguidos'); },
-    navConfig() { chrome.runtime.sendMessage({action:'open_config'}); },
+    navNotificaciones() { if (window.cargarInterfaz) window.cargarInterfaz('notificaciones'); },
+    navSeguidos() { if (window.cargarInterfaz) window.cargarInterfaz('seguidos'); },
+    navConfig() { chrome.runtime.sendMessage({ action: 'open_config' }); },
 
     toggleDetalles(fic, index) {
         const llave = `${fic.ficId}-${index}`;
@@ -35,54 +40,69 @@ window.setupTrackerApp = () => ({
     },
 
     async eliminar(fic, index) {
-        if (!confirm("¿Eliminar este registro?")) return;
+        if (!confirm(`¿Eliminar "${fic.titulo}"?`)) return;
         const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
+        const res = await chrome.storage.local.get([key, 'eliminadosIds', 'webAppUrl']);
+        
+        let lista = Array.isArray(res[key]) ? res[key] : [];
+        lista = lista.filter(f => String(f.ficId) !== String(fic.ficId));
 
-        this.registros.splice(index, 1);
-        const update = { [key]: this.registros };
-
-        // Si es de notificaciones, lo añadimos a la lista negra
-        if (!this.esSeguidos && fic.ficId) {
-            const data = await chrome.storage.local.get('eliminadosIds');
-            let eliminados = Array.isArray(data.eliminadosIds) ? data.eliminadosIds : [];
-            if (!eliminados.includes(fic.ficId)) {
-                eliminados.push(fic.ficId);
-                update.eliminadosIds = eliminados;
+        if (!this.esSeguidos) {
+            let eliminados = Array.isArray(res.eliminadosIds) ? res.eliminadosIds : [];
+            if (!eliminados.includes(fic.ficId)) eliminados.push(fic.ficId);
+            await chrome.storage.local.set({ "misNotificaciones": lista, "eliminadosIds": eliminados });
+        } else {
+            await chrome.storage.local.set({ "misSeguidos": lista });
+            // Notificar al Excel
+            if (res.webAppUrl) {
+                fetch(res.webAppUrl, {
+                    method: "POST", mode: "no-cors",
+                    body: JSON.stringify({ action: "dejar_de_seguir", ficId: fic.ficId })
+                });
             }
         }
-
-        await chrome.storage.local.set(update);
-        if (window.actualizarContadorEnPagina) window.actualizarContadorEnPagina();
     },
 
     async marcarLeido(fic, index) {
         if (this.esSeguidos) {
-            fic.ultimoLeido = fic.capitulo;
+            await window.actualizarProgresoLectura(fic.ficId, fic.capitulo);
         } else {
-            fic.leido = !fic.leido;
+            const res = await chrome.storage.local.get('misNotificaciones');
+            let notis = res.misNotificaciones || [];
+            const idx = notis.findIndex(f => String(f.ficId) === String(fic.ficId));
+            if (idx !== -1) {
+                notis[idx].leido = !notis[idx].leido;
+                await chrome.storage.local.set({ 'misNotificaciones': notis });
+            }
         }
-        const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
-        await chrome.storage.local.set({ [key]: this.registros });
-        if (window.actualizarContadorEnPagina) window.actualizarContadorEnPagina();
     }
 });
 
-// Registrar trackerApp en Alpine inmediatamente
-const registerAlpineComponent = () => {
-    if (window.Alpine && !trackerAppRegistered) {
-        window.Alpine.data('trackerApp', window.setupTrackerApp);
-        trackerAppRegistered = true;
-        console.log('[TrackerApp] Componente registrado en Alpine');
+// Función global para actualizar progreso (Excel + Local)
+window.actualizarProgresoLectura = async (ficId, capitulo) => {
+    const res = await chrome.storage.local.get(['misSeguidos', 'webAppUrl']);
+    let seguidos = res.misSeguidos || [];
+    const idx = seguidos.findIndex(f => String(f.ficId) === String(ficId));
+    
+    if (idx !== -1) {
+        seguidos[idx].ultimoLeido = capitulo;
+        await chrome.storage.local.set({ 'misSeguidos': seguidos });
+        
+        if (res.webAppUrl) {
+            fetch(res.webAppUrl, {
+                method: "POST", mode: "no-cors",
+                body: JSON.stringify({ action: "actualizar_progreso", ficId: ficId, ultimoLeido: capitulo })
+            });
+        }
+        alert(`✅ Guardado hasta cap. ${capitulo}`);
     }
 };
 
-// Intentar registrar inmediatamente
-registerAlpineComponent();
-
-// También registrar cuando Alpine se inicialice
-document.addEventListener('alpine:init', () => {
-    registerAlpineComponent();
-});
-
-// Hacer setupTrackerApp disponible globalmente para content_script.js
-window.registerTrackerApp = registerAlpineComponent;
+window.registrarComponenteAlpine = () => {
+    if (window.Alpine && !trackerAppRegistered) {
+        window.Alpine.data('trackerApp', window.setupTrackerApp);
+        trackerAppRegistered = true;
+    }
+};
+window.registrarComponenteAlpine();
+document.addEventListener('alpine:init', window.registrarComponenteAlpine);
