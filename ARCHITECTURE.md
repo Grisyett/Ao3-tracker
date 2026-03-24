@@ -61,19 +61,22 @@ The project uses a **three-layer decentralized architecture**:
 | File | Type | Responsibility |
 |------|------|----------------|
 | `manifest.json` | Config | Extension metadata, permissions, content scripts |
-| `content_script.js` | Script | DOM injection, UI rendering |
-| `ui_logic.js` | Script | Alpine.js reactive data management |
-| `background.js` | Service Worker | Background sync, notifications, badge updates |
+| `content_script.js` | Script | DOM injection, UI rendering, scraper de metadata AO3 |
+| `ui_logic.js` | Script | Alpine.js reactive data management, sync con Google Sheets |
+| `background.js` | Service Worker | Background sync (5 min), notifications, badge updates, open config |
 | `interfaz/style.css` | Stylesheet | Extension styling |
 | `interfaz/*.html` | Templates | UI components (notifications, settings, followed) |
+| `interfaz/configuracion.js` | Script | Configuración de Web App URL |
 | `libs/alpine.csp.js` | Library | Reactive framework (CSP-compliant) |
 
 #### Key Responsibilities
 
-- **UI Injection:** Injects tracker button into AO3 navigation bar
+- **UI Injection:** Injects tracker button into AO3 navigation bar (`ul.primary.navigation.actions`)
+- **Metadata Scraping:** Extracts title, author, fandom, rating, warnings, ships, summary from AO3 pages
 - **Local Storage:** Uses `chrome.storage.local` for instant data access
 - **Badge System:** Visual counter on extension icon showing unread updates
-- **Real-time Updates:** Listens for background sync events to refresh UI
+- **Real-time Updates:** Listens for background sync events (`refrescar_interfaz_ao3`)
+- **Config Page:** Opens `interfaz/configuracion.html` via `chrome.tabs.create()`
 
 ---
 
@@ -120,31 +123,32 @@ The project uses a **three-layer decentralized architecture**:
 
 ## Data Flow
 
-### Sync Process (Every 30 minutes)
+### Sync Process (Every 5 minutes)
 
 ```
-1. background.js alarm triggers
+1. background.js alarm triggers (periodInMinutes: 5)
        │
        ▼
-2. Fetch from Google Apps Script Web App URL
+2. Fetch from Google Apps Script Web App URL (?sync=full)
        │
        ▼
 3. Receive JSON with fic updates
        │
        ▼
 4. Process updates:
+   - Update "misSeguidos" silently (metadata changes)
    - Filter out deleted/blacklisted fics
    - Detect new chapters
-   - "Resurrect" fics with new content
+   - "Resurrect" fics with new content (cap > ultimoLeido)
        │
        ▼
-5. Update chrome.storage.local
+5. Update chrome.storage.local (misNotificaciones, misSeguidos, eliminadosIds)
        │
        ▼
-6. Update badge counter
+6. Update badge counter (unread count)
        │
        ▼
-7. Send refresh message to content script
+7. Send refresh message to content script (refrescar_interfaz_ao3)
 ```
 
 ### User Interaction Flow
@@ -185,13 +189,19 @@ UI auto-refreshes via Alpine.js reactivity
 
 ```javascript
 {
-  ficId: string,      // AO3 work ID
-  titulo: string,     // Title
-  autor: string,      // Author
-  capitulo: number,   // Current chapter number
-  url: string,        // Chapter URL
-  leido: boolean,     // Read status (notifications only)
-  ultimoLeido: number // Last read chapter (followed only)
+  ficId: string,          // AO3 work ID
+  titulo: string,         // Title
+  autor: string,          // Author
+  fandom: string,         // Fandom category
+  ship: string,           // Relationships/pairings
+  rating: string,         // Content rating
+  warnings: string,       // AO3 content warnings
+  sumario: string,        // Story summary
+  capitulo: number,       // Current chapter number
+  url: string,            // Chapter URL
+  leido: boolean,         // Read status (notifications only)
+  ultimoLeido: number,    // Last read chapter (followed only)
+  fechaRegistro: string   // Registration date
 }
 ```
 
@@ -249,7 +259,8 @@ UI auto-refreshes via Alpine.js reactivity
 
 | Version | Status | Notes |
 |---------|--------|-------|
-| 1.3 | Beta | Current release |
+| 1.4 | Current | Sync 5 min, config page, metadata scraping completo |
+| 1.3 | Beta | Previous release |
 
 ---
 
@@ -257,15 +268,18 @@ UI auto-refreshes via Alpine.js reactivity
 
 ```
 manifest.json
-├── background.js (service_worker)
-├── content_scripts
+├── background.js (service_worker, module)
+│   ├── chrome.alarms (sync cada 5 min)
+│   ├── chrome.storage.onChanged
+│   └── chrome.runtime.onMessage (sync_now, open_config)
+├── content_scripts (https://archiveofourown.org/*)
 │   ├── libs/alpine.csp.js
 │   ├── ui_logic.js
 │   └── content_script.js
 ├── interfaz/style.css
 └── web_accessible_resources
-    ├── interfaz/*.html
-    ├── interfaz/style.css
+    ├── interfaz/*.html (notificaciones, seguidos, configuracion)
+    ├── interfaz/*.css
     ├── ui_logic.js
     └── libs/alpine.csp.js
 ```
