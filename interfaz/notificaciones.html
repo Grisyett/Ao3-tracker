@@ -16,7 +16,7 @@
             <li class="fic-notif-item" :style="fic.leido ? 'opacity: 0.6' : ''">
                 <div class="fic-header">
                     <a :href="fic.url || '#'" x-text="fic.titulo" class="fic-link" target="_blank"></a>
-                    <span class="fic-cap" x-text="fic.capitulo ? 'Cap: ' + fic.capitulo : 'Nuevo'"></span>
+                    <span class="fic-cap" x-text="'Cap: ' + fic.capitulo"></span>
                 </div>
                 
                 <div class="fic-actions">
@@ -39,7 +39,7 @@
     </div>
 
     <li class="footer-tracker">
-        AO3 Tracker Pro<br>
+        AO3 Tracker<br>
         <span style="opacity:0.8; font-size:10px;">© 2026 Griyo.</span>
     </li>
 </div>
