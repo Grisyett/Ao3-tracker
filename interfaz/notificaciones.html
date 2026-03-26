@@ -13,7 +13,7 @@
         </template>
 
         <template x-for="(fic, index) in registros" :key="index">
-            <li class="fic-notif-item" :style="fic.leido ? 'opacity: 0.6' : ''">
+            <li class="fic-notif-item" :style="fic.leido ? 'opacity: 0.6' : ''" :class="fic.isUpdated ? 'is-new' : ''">
                 <div class="fic-header">
                     <a :href="fic.url || '#'" x-text="fic.titulo" class="fic-link" target="_blank"></a>
                     <span class="fic-cap" x-text="'Cap: ' + fic.capitulo"></span>

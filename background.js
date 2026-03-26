@@ -21,7 +21,8 @@ async function consultarServidorExcel() {
 
             result.fics.forEach(nuevo => {
                 const ficIdStr = String(nuevo.ficId).trim();
-                
+                console.log(`[Sync] Procesando fic: ${ficIdStr} - ${nuevo.titulo} (Cap: ${nuevo.capitulo})`);
+
                 // --- LIMPIEZA DE CAPÍTULO (Evitar fechas y procesar "4/?") ---
                 let capRaw = String(nuevo.capitulo || "").trim();
                 let capLimpio;
@@ -38,34 +39,44 @@ async function consultarServidorExcel() {
                 const capExcel = parseInt(capLimpio) || 0;
 
                 // --- A. ACTUALIZACIÓN SILENCIOSA DE "SEGUIDOS" ---
+                // Solo actualizamos los fics que el usuario YA está siguiendo
                 const idxSeg = seguidos.findIndex(f => String(f.ficId) === ficIdStr);
                 if (idxSeg !== -1) {
                     const viejoSeg = seguidos[idxSeg];
-                    const cambioSeg = viejoSeg.capitulo !== nuevo.capitulo || 
+                    const hayNuevoCap = parseInt(nuevo.capitulo) > (parseInt(viejoSeg.capitulo) || 0);
+                    const cambioSeg = viejoSeg.capitulo !== nuevo.capitulo ||
                                      viejoSeg.sumario !== nuevo.sumario ||
                                      viejoSeg.titulo !== nuevo.titulo ||
                                      viejoSeg.ship !== nuevo.ship ||
                                      viejoSeg.fandom !== nuevo.fandom;
-                    
+
                     if (cambioSeg) {
-                        seguidos[idxSeg] = { ...viejoSeg, ...nuevo };
+                        if (hayNuevoCap) {
+                            // Nuevo capítulo: mover al inicio con timestamp actualizado
+                            seguidos.splice(idxSeg, 1);
+                            seguidos.unshift({ ...viejoSeg, ...nuevo, timestamp: Date.now(), isUpdated: true });
+                        } else {
+                            seguidos[idxSeg] = { ...viejoSeg, ...nuevo };
+                        }
                         huboCambios = true;
                     }
                 }
+                // Si el fic NO está en seguidos, NO lo agregamos automáticamente
 
                 // --- B. LÓGICA DE NOTIFICACIONES Y RESURRECCIÓN ---
                 const idxNoti = notis.findIndex(f => String(f.ficId) === ficIdStr);
                 const estaEnEliminados = eliminados.map(String).includes(ficIdStr);
 
                 if (idxNoti === -1) {
-                    // Resucita si: está eliminado PERO el capítulo del Excel es mayor al último registrado
-                    const esResurreccion = estaEnEliminados && capExcel > (parseInt(nuevo.ultimoLeido) || 0);
+                    // Fic nuevo en notificaciones (o resurrección)
+                    const esResurreccion = estaEnEliminados && capExcel > 0;
                     const esNuevoTotal = !estaEnEliminados;
 
                     if (esNuevoTotal || esResurreccion) {
                         notis.unshift({ ...nuevo, leido: false });
                         huboCambios = true;
-                        
+                        console.log(`[Sync] Nueva notificación: ${nuevo.titulo}`);
+
                         if (esResurreccion) {
                             eliminados = eliminados.filter(id => String(id) !== ficIdStr);
                             console.log(`[Sync] Fic resucitado: ${nuevo.titulo}`);
@@ -75,36 +86,27 @@ async function consultarServidorExcel() {
                     const viejo = notis[idxNoti];
                     const capLocal = parseInt(viejo.capitulo) || 0;
 
-                    const cambioMetadata = 
-                        viejo.titulo !== nuevo.titulo ||
-                        viejo.autor !== nuevo.autor ||
-                        viejo.fandom !== nuevo.fandom ||
-                        viejo.ship !== nuevo.ship ||
-                        viejo.rating !== nuevo.rating ||
-                        viejo.warnings !== nuevo.warnings ||
-                        viejo.sumario !== nuevo.sumario;
-
+                    // Si hay nuevo capítulo, mover al inicio y marcar como no leído
                     if (capExcel > capLocal) {
                         let registro = notis.splice(idxNoti, 1)[0];
                         notis.unshift({ ...registro, ...nuevo, leido: false });
                         huboCambios = true;
-                    } 
-                    else if (cambioMetadata) {
-                        notis[idxNoti] = { ...viejo, ...nuevo }; 
-                        huboCambios = true;
+                        console.log(`[Sync] Actualización detectada: ${nuevo.titulo} (Cap ${capLocal} → ${capExcel})`);
                     }
                 }
             });
 
             if (huboCambios) {
+                // Ordenar seguidos por timestamp (más reciente primero)
+                seguidos.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
                 const listaFinal = notis.slice(0, 50);
-                await chrome.storage.local.set({ 
+                await chrome.storage.local.set({
                     "misNotificaciones": listaFinal,
                     "misSeguidos": seguidos,
                     "eliminadosIds": eliminados
                 });
-                
-                actualizarBadge(listaFinal);
+
                 chrome.runtime.sendMessage({ action: "refrescar_interfaz_ao3" }).catch(() => {});
                 console.log("[Background] Sincronización finalizada con cambios.");
             } else {
@@ -126,14 +128,15 @@ function actualizarBadge(lista) {
 
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.misNotificaciones) {
-        actualizarBadge(changes.misNotificaciones.newValue || []);
+        const lista = changes.misNotificaciones.newValue || [];
+        actualizarBadge(lista);
     }
 });
 
 chrome.alarms.create("syncAO3", { periodInMinutes: 5 });
 chrome.alarms.onAlarm.addListener(a => { 
     if(a.name === "syncAO3") consultarServidorExcel(); 
-});
+}); 
 
 chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
     if (m.action === 'sync_now') consultarServidorExcel();

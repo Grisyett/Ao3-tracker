@@ -13,8 +13,8 @@
             <li style="padding:20px; text-align:center; color:#999; list-style:none;">Cargando seguidos...</li>
         </template>
 
-        <template x-for="(fic, index) in registros" :key="index">
-            <li class="fic-notif-item">
+        <template x-for="(fic, index) in registros" :key="fic.ficId + '-' + index">
+            <li class="fic-notif-item" :class="fic.isUpdated ? 'is-new' : ''">
                 <div class="fic-header">
                     <a :href="fic.url || '#'" x-text="fic.titulo" class="fic-link" target="_blank" style="color: #580c0c !important;"></a>
                     

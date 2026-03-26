@@ -57,6 +57,21 @@
     box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
 }
 
+/* Borde rojo para nuevos/actualizados */
+.fic-notif-item.is-new {
+    border: 3px solid #900 !important;
+}
+
+/* Animación de desvanecimiento del borde */
+.fic-notif-item.fade-border.is-new {
+    animation: fadeBorder 0.5s ease forwards;
+}
+
+@keyframes fadeBorder {
+    from { border: 3px solid #900 !important; }
+    to { border: 1px solid #ddd !important; }
+}
+
 /* Cabecera del Fic (Título y Cap) */
 .fic-header {
     display: flex !important;

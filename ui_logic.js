@@ -13,20 +13,60 @@ window.setupTrackerApp = () => ({
         this.esSeguidos = contenedorRaiz ? contenedorRaiz.classList.contains('tema-seguidos') : false;
         await this.cargarDatos();
 
+        // Lógica de desvanecimiento de borde para nuevos/actualizados (5 segundos)
+        setTimeout(() => {
+            const elementosNuevos = document.querySelectorAll('.fic-notif-item.is-new');
+            elementosNuevos.forEach(el => el.classList.add('fade-border'));
+        }, 5000);
+
         chrome.storage.onChanged.addListener((changes, area) => {
             const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
             if (area === 'local' && changes[key]) {
-                this.registros = changes[key].newValue || [];
-                if (window.actualizarContadorEnPagina) window.actualizarContadorEnPagina();
+                let nuevaLista = changes[key].newValue || [];
+                if (this.esSeguidos) {
+                    nuevaLista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                }
+                this.registros = nuevaLista;
+                
+                // Re-aplicar el temporizador de desvanecimiento cuando hay cambios
+                setTimeout(() => {
+                    const elementosNuevos = document.querySelectorAll('.fic-notif-item.is-new');
+                    elementosNuevos.forEach(el => el.classList.add('fade-border'));
+                }, 5000);
             }
         });
+
+        // En seguidos: quitar flag isUpdated después de 5 segundos
+        if (this.esSeguidos) {
+            setTimeout(async () => {
+                const res = await chrome.storage.local.get(['misSeguidos']);
+                let seguidos = res.misSeguidos || [];
+                let huboCambios = false;
+                seguidos.forEach(fic => {
+                    if (fic.isUpdated) {
+                        fic.isUpdated = false;
+                        huboCambios = true;
+                    }
+                });
+                if (huboCambios) {
+                    await chrome.storage.local.set({ 'misSeguidos': seguidos });
+                }
+            }, 5000);
+        }
     },
 
     async cargarDatos() {
         this.loading = true;
         const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
         const data = await chrome.storage.local.get(key);
-        this.registros = Array.isArray(data[key]) ? data[key] : [];
+        let lista = Array.isArray(data[key]) ? data[key] : [];
+
+        // Si estamos en la pestaña de seguidos, ordenamos por timestamp antes de mostrar
+        if (this.esSeguidos) {
+            lista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        }
+
+        this.registros = lista;
         this.loading = false;
     },
 
@@ -92,7 +132,7 @@ window.actualizarProgresoLectura = async (ficId, capitulo) => {
             fetch(res.webAppUrl, {
                 method: "POST", mode: "no-cors",
                 body: JSON.stringify({ action: "actualizar_progreso", ficId: ficId, ultimoLeido: capitulo })
-            });
+            }); 
         }
         alert(`✅ Guardado hasta cap. ${capitulo}`);
     }

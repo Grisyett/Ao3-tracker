@@ -57,6 +57,13 @@ function actualizarContadorEnPagina() {
     });
 }
 
+// Listener para actualizar el badge en tiempo real
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.misNotificaciones) {
+        actualizarContadorEnPagina();
+    }
+});
+
 /**
  * 3. MOTOR DE SCRAPING (FETCH A PÁGINA PRINCIPAL)
  */
@@ -143,8 +150,8 @@ async function inyectarBotonSeguir() {
             const meta = await scrapearDatosFic(ficId);
             if (!meta) return;
 
-            const datos = { action: "marcar_seguido", ficId: ficId, ...meta, ultimoLeido: 0, fechaRegistro: new Date().toLocaleString() };
-            listaActual.push(datos);
+            const datos = { action: "marcar_seguido", ficId: ficId, ...meta, ultimoLeido: 0, fechaRegistro: new Date().toLocaleString(), timestamp: Date.now() };
+            listaActual.unshift(datos);
             await chrome.storage.local.set({ 'misSeguidos': listaActual });
 
             if (freshRes.webAppUrl) {
