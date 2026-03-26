@@ -28,7 +28,8 @@
                 <div x-show="idFicAbierto == (fic.ficId + '-' + index)" class="fic-info-extra">
                     <div class="info-line"><strong>Fandom:</strong> <span x-text="fic.fandom || 'N/A'"></span></div>
                     <div class="info-line"><strong>Relationship:</strong> <span x-text="fic.ship || 'N/A'"></span></div>
-                    <div class="txt-sumario" x-text="fic.sumario || 'Sin sumario.'"></div>
+                    
+                    <div class="txt-sumario"><span x-text="fic.sumario || 'Sin sumario.'"></span></div>
                 </div>
             </li>
         </template>
