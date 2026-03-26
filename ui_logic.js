@@ -14,10 +14,8 @@ window.setupTrackerApp = () => ({
         await this.cargarDatos();
 
         // Lógica de desvanecimiento de borde para nuevos/actualizados (5 segundos)
-        setTimeout(() => {
-            const elementosNuevos = document.querySelectorAll('.fic-notif-item.is-new');
-            elementosNuevos.forEach(el => el.classList.add('fade-border'));
-        }, 5000);
+        // Aplica tanto para notificaciones como para seguidos
+        this.aplicarDesvanecimiento();
 
         chrome.storage.onChanged.addListener((changes, area) => {
             const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
@@ -27,32 +25,35 @@ window.setupTrackerApp = () => ({
                     nuevaLista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
                 }
                 this.registros = nuevaLista;
-                
+
                 // Re-aplicar el temporizador de desvanecimiento cuando hay cambios
-                setTimeout(() => {
-                    const elementosNuevos = document.querySelectorAll('.fic-notif-item.is-new');
-                    elementosNuevos.forEach(el => el.classList.add('fade-border'));
-                }, 5000);
+                this.aplicarDesvanecimiento();
             }
         });
 
-        // En seguidos: quitar flag isUpdated después de 5 segundos
-        if (this.esSeguidos) {
-            setTimeout(async () => {
-                const res = await chrome.storage.local.get(['misSeguidos']);
-                let seguidos = res.misSeguidos || [];
-                let huboCambios = false;
-                seguidos.forEach(fic => {
-                    if (fic.isUpdated) {
-                        fic.isUpdated = false;
-                        huboCambios = true;
-                    }
-                });
-                if (huboCambios) {
-                    await chrome.storage.local.set({ 'misSeguidos': seguidos });
+        // En seguidos y notificaciones: quitar flag isUpdated después de 5 segundos
+        setTimeout(async () => {
+            const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
+            const res = await chrome.storage.local.get([key]);
+            let lista = res[key] || [];
+            let huboCambios = false;
+            lista.forEach(fic => {
+                if (fic.isUpdated) {
+                    fic.isUpdated = false;
+                    huboCambios = true;
                 }
-            }, 5000);
-        }
+            });
+            if (huboCambios) {
+                await chrome.storage.local.set({ [key]: lista });
+            }
+        }, 5000);
+    },
+
+    aplicarDesvanecimiento() {
+        setTimeout(() => {
+            const elementosNuevos = document.querySelectorAll('.fic-notif-item.is-new');
+            elementosNuevos.forEach(el => el.classList.add('fade-border'));
+        }, 5000);
     },
 
     async cargarDatos() {

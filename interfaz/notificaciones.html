@@ -12,8 +12,8 @@
             <li style="padding:20px; text-align:center; color:#999; list-style:none;">Cargando...</li>
         </template>
 
-        <template x-for="(fic, index) in registros" :key="index">
-            <li class="fic-notif-item" :style="fic.leido ? 'opacity: 0.6' : ''" :class="fic.isUpdated ? 'is-new' : ''">
+        <template x-for="(fic, index) in registros" :key="fic.ficId + '-' + index">
+            <li class="fic-notif-item" :class="fic.isUpdated ? 'is-new' : ''" :style="fic.leido ? 'opacity: 0.6' : ''">
                 <div class="fic-header">
                     <a :href="fic.url || '#'" x-text="fic.titulo" class="fic-link" target="_blank"></a>
                     <span class="fic-cap" x-text="'Cap: ' + fic.capitulo"></span>

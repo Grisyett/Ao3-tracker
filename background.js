@@ -73,7 +73,7 @@ async function consultarServidorExcel() {
                     const esNuevoTotal = !estaEnEliminados;
 
                     if (esNuevoTotal || esResurreccion) {
-                        notis.unshift({ ...nuevo, leido: false });
+                        notis.unshift({ ...nuevo, leido: false, isUpdated: true, timestamp: Date.now() });
                         huboCambios = true;
                         console.log(`[Sync] Nueva notificación: ${nuevo.titulo}`);
 
@@ -86,10 +86,10 @@ async function consultarServidorExcel() {
                     const viejo = notis[idxNoti];
                     const capLocal = parseInt(viejo.capitulo) || 0;
 
-                    // Si hay nuevo capítulo, mover al inicio y marcar como no leído
+                    // Si hay nuevo capítulo, mover al inicio y marcar como no leído + isUpdated
                     if (capExcel > capLocal) {
                         let registro = notis.splice(idxNoti, 1)[0];
-                        notis.unshift({ ...registro, ...nuevo, leido: false });
+                        notis.unshift({ ...registro, ...nuevo, leido: false, isUpdated: true, timestamp: Date.now() });
                         huboCambios = true;
                         console.log(`[Sync] Actualización detectada: ${nuevo.titulo} (Cap ${capLocal} → ${capExcel})`);
                     }
