@@ -61,12 +61,12 @@ The project uses a **three-layer decentralized architecture**:
 | File | Type | Responsibility |
 |------|------|----------------|
 | `manifest.json` | Config | Extension metadata, permissions, content scripts |
-| `content_script.js` | Script | DOM injection, UI rendering, scraper de metadata AO3 |
-| `ui_logic.js` | Script | Alpine.js reactive data management, sync con Google Sheets |
+| `content_script.js` | Script | DOM injection, UI rendering, AO3 metadata scraper, follow button |
+| `ui_logic.js` | Script | Alpine.js reactive data management, sync with Google Sheets |
 | `background.js` | Service Worker | Background sync (5 min), notifications, badge updates, open config |
 | `interfaz/style.css` | Stylesheet | Extension styling |
 | `interfaz/*.html` | Templates | UI components (notifications, settings, followed) |
-| `interfaz/configuracion.js` | Script | Configuración de Web App URL |
+| `interfaz/configuracion.js` | Script | Web App URL configuration |
 | `libs/alpine.csp.js` | Library | Reactive framework (CSP-compliant) |
 
 #### Key Responsibilities
@@ -74,7 +74,7 @@ The project uses a **three-layer decentralized architecture**:
 - **UI Injection:** Injects tracker button into AO3 navigation bar (`ul.primary.navigation.actions`)
 - **Metadata Scraping:** Extracts title, author, fandom, rating, warnings, ships, summary from AO3 pages
 - **Local Storage:** Uses `chrome.storage.local` for instant data access
-- **Badge System:** Visual counter on extension icon showing unread updates
+- **Badge System:** Visual counter on extension icon showing unread updates (real-time)
 - **Real-time Updates:** Listens for background sync events (`refrescar_interfaz_ao3`)
 - **Config Page:** Opens `interfaz/configuracion.html` via `chrome.tabs.create()`
 
@@ -136,16 +136,26 @@ The project uses a **three-layer decentralized architecture**:
        │
        ▼
 4. Process updates:
-   - Update "misSeguidos" silently (metadata changes)
-   - Filter out deleted/blacklisted fics
-   - Detect new chapters
-   - "Resurrect" fics with new content (cap > ultimoLeido)
+   ├─ Update "misSeguidos" silently (metadata changes)
+   │  └─ Only updates fics already followed by user
+   │  └─ New chapter: moves to top + sets isUpdated=true + timestamp
+   │
+   ├─ Filter out deleted/blacklisted fics
+   │
+   ├─ Detect new chapters in notifications
+   │  └─ New fic: adds to notifications with isUpdated=true
+   │  └─ Existing fic with new chapter: moves to top + isUpdated=true
+   │
+   └─ "Resurrect" fics with new content (cap > ultimoLeido)
        │
        ▼
-5. Update chrome.storage.local (misNotificaciones, misSeguidos, eliminadosIds)
+5. Update chrome.storage.local:
+   - misNotificaciones (max 50 items)
+   - misSeguidos (sorted by timestamp, newest first)
+   - eliminadosIds (blacklist)
        │
        ▼
-6. Update badge counter (unread count)
+6. Update badge counter (unread count) via chrome.storage.onChanged
        │
        ▼
 7. Send refresh message to content script (refrescar_interfaz_ao3)
@@ -163,13 +173,20 @@ UI loads from interfaz/*.html templates
 Alpine.js initializes reactive data
        │
        ▼
-User actions (mark read, delete, navigate)
+User actions (mark read, delete, navigate, follow)
        │
        ▼
 Update chrome.storage.local
        │
+       ├─ Follow new fic → content_script.js uses unshift() → appears at top
+       ├─ Mark as read → ui_logic.js updates ultimoLeido
+       └─ Delete fic → adds to eliminadosIds blacklist
+       │
        ▼
-UI auto-refreshes via Alpine.js reactivity
+UI auto-refreshes via Alpine.js reactivity + chrome.storage.onChanged listeners
+       │
+       ▼
+Badge updates in real-time via listeners in content_script.js and background.js
 ```
 
 ---
@@ -182,7 +199,7 @@ UI auto-refreshes via Alpine.js reactivity
 |-----|------|-------------|
 | `webAppUrl` | String | Google Apps Script Web App URL |
 | `misNotificaciones` | Array[] | Notification list (max 50 items) |
-| `misSeguidos` | Array[] | Followed fics list |
+| `misSeguidos` | Array[] | Followed fics list (sorted by timestamp) |
 | `eliminadosIds` | String[] | Blacklist of deleted fic IDs |
 
 ### Notification Object Structure
@@ -201,7 +218,9 @@ UI auto-refreshes via Alpine.js reactivity
   url: string,            // Chapter URL
   leido: boolean,         // Read status (notifications only)
   ultimoLeido: number,    // Last read chapter (followed only)
-  fechaRegistro: string   // Registration date
+  fechaRegistro: string,  // Registration date
+  timestamp: number,      // Unix timestamp for sorting (newest first)
+  isUpdated: boolean      // True when new chapter detected (for red border)
 }
 ```
 
@@ -217,7 +236,7 @@ UI auto-refreshes via Alpine.js reactivity
 
 ### Decentralized Sync
 
-- **Polling-based:** 30-minute sync intervals via `chrome.alarms`
+- **Polling-based:** 5-minute sync intervals via `chrome.alarms`
 - **Stateless API:** Google Apps Script processes requests without storing state
 - **Conflict resolution:** Latest chapter number always wins
 
@@ -226,6 +245,22 @@ UI auto-refreshes via Alpine.js reactivity
 - Deleted notifications are added to `eliminadosIds`
 - Prevents re-appearing of intentionally dismissed fics
 - Automatically removed if fic receives new chapter update
+- Fics in blacklist are NOT added to `misSeguidos` during sync
+
+### Timestamp-Based Sorting
+
+- New followed fics use `unshift()` to appear at top immediately
+- Sync process adds `timestamp: Date.now()` to updated fics
+- `misSeguidos` sorted by timestamp (newest first) before display
+- Ensures consistent ordering across sessions
+
+### Visual Update Indicators
+
+- **Red border** (`is-new` class): Appears when `isUpdated=true`
+- **5-second fade**: Border animates to normal after 5 seconds
+- **isUpdated flag**: Automatically cleared after 5 seconds via timeout
+- **Notifications**: Border shows on new chapter detection
+- **Followed**: Border shows on new chapter detection
 
 ---
 
@@ -259,7 +294,8 @@ UI auto-refreshes via Alpine.js reactivity
 
 | Version | Status | Notes |
 |---------|--------|-------|
-| 1.4 | Current | Sync 5 min, config page, metadata scraping completo |
+| 1.5 | Current | Timestamp sorting, red border indicators, real-time badge, blacklist fix |
+| 1.4 | Previous | 5 min sync, config page, full metadata scraping |
 | 1.3 | Beta | Previous release |
 
 ---
@@ -268,15 +304,29 @@ UI auto-refreshes via Alpine.js reactivity
 
 ```
 manifest.json
-├── background.js (service_worker, module)
+├── background.js (service_worker)
 │   ├── chrome.alarms (sync cada 5 min)
-│   ├── chrome.storage.onChanged
+│   ├── chrome.storage.onChanged → actualizarBadge()
 │   └── chrome.runtime.onMessage (sync_now, open_config)
+│
 ├── content_scripts (https://archiveofourown.org/*)
 │   ├── libs/alpine.csp.js
 │   ├── ui_logic.js
+│   │   ├── setupTrackerApp() → Alpine reactive data
+│   │   ├── actualizarProgresoLectura() → global function
+│   │   └── registrarComponenteAlpine() → Alpine component registration
 │   └── content_script.js
+│       ├── cargarInterfaz() → loads HTML templates
+│       ├── inyectarBase() → injects tracker button
+│       ├── inyectarBotonSeguir() → follow/unfollow button
+│       ├── inyectarBotonMarcarLectura() → mark read button
+│       ├── actualizarContadorEnPagina() → inline badge update
+│       └── chrome.storage.onChanged → real-time badge refresh
+│
 ├── interfaz/style.css
+│   ├── .fic-notif-item.is-new → red border (3px solid #900)
+│   └── .fic-notif-item.fade-border.is-new → fade animation
+│
 └── web_accessible_resources
     ├── interfaz/*.html (notificaciones, seguidos, configuracion)
     ├── interfaz/*.css
@@ -286,5 +336,27 @@ manifest.json
 
 ---
 
-**License:** MIT  
+## UI Behavior Summary
+
+### Followed Fics (`seguidos.html`)
+
+| Action | Behavior |
+|--------|----------|
+| Follow new fic | Appears at **top** of list (unshift) |
+| New chapter detected | Moves to **top** + **red border** (5 sec) |
+| Mark as read | Updates `ultimoLeido`, no visual change |
+| Unfollow | Removes from list + removes read button |
+
+### Notifications (`notificaciones.html`)
+
+| Action | Behavior |
+|--------|----------|
+| New fic detected | Appears at **top** + **red border** (5 sec) |
+| New chapter detected | Moves to **top** + **red border** (5 sec) |
+| Mark as read | Sets `leido=true`, opacity 0.6 |
+| Delete | Adds to `eliminadosIds` blacklist |
+
+---
+
+**License:** MIT
 **Maintainer:** [Griyo](https://github.com/Grisyett)

@@ -1,16 +1,41 @@
-// background.js - Sincronización, Badge Global y Reordenamiento Dinámico
+// background.js - Sincronización Incremental con Backup Periódico
+
+// Contador de sincronizaciones (para backup periódico)
+let syncCounter = 0;
+const SYNC_PARA_BACKUP = 12; // Cada 12 syncs = 60 minutos (1 hora)
 
 async function consultarServidorExcel() {
-    // 1. Recuperar datos necesarios del storage
-    const data = await chrome.storage.local.get(['webAppUrl', 'misNotificaciones', 'misSeguidos', 'eliminadosIds']);
+    syncCounter++;
+    
+    const data = await chrome.storage.local.get([
+        'webAppUrl', 
+        'misNotificaciones', 
+        'misSeguidos', 
+        'eliminadosIds',
+        'lastSyncTimestamp'
+    ]);
+    
     if (!data.webAppUrl) {
         console.warn("[Background] No hay URL de Web App configurada.");
         return;
     }
 
     try {
-        console.log("[Background] Iniciando sincronización...");
-        const res = await fetch(`${data.webAppUrl}?sync=full&t=${Date.now()}`);
+        // Determinar si es sync completo (backup) o incremental
+        const forzarFull = syncCounter % SYNC_PARA_BACKUP === 0;
+        const lastSync = forzarFull ? 0 : (data.lastSyncTimestamp || 0);
+        const modo = forzarFull ? 'full' : 'incremental';
+        
+        if (forzarFull) {
+            console.log(`[Background] === SYNC COMPLETO DE BACKUP #${syncCounter} ===`);
+            syncCounter = 0; // Resetear contador
+        } else {
+            console.log(`[Background] Sync incremental desde ${new Date(lastSync).toLocaleString()}`);
+        }
+        
+        // Sync incremental: solo trae cambios desde última sincronización
+        const url = `${data.webAppUrl}?sync=${modo}&since=${lastSync}`;
+        const res = await fetch(url);
         const result = await res.json();
 
         if (result && result.fics) {
@@ -19,9 +44,11 @@ async function consultarServidorExcel() {
             let eliminados = Array.isArray(data.eliminadosIds) ? data.eliminadosIds : [];
             let huboCambios = false;
 
+            console.log(`[Background] Fics recibidos: ${result.fics.length} (modo: ${modo})`);
+
             result.fics.forEach(nuevo => {
                 const ficIdStr = String(nuevo.ficId).trim();
-                console.log(`[Sync] Procesando fic: ${ficIdStr} - ${nuevo.titulo} (Cap: ${nuevo.capitulo})`);
+                console.log(`[Sync] Procesando: ${ficIdStr} - ${nuevo.titulo} (Cap: ${nuevo.capitulo})`);
 
                 // --- LIMPIEZA DE CAPÍTULO (Evitar fechas y procesar "4/?") ---
                 let capRaw = String(nuevo.capitulo || "").trim();
@@ -86,12 +113,27 @@ async function consultarServidorExcel() {
                     const viejo = notis[idxNoti];
                     const capLocal = parseInt(viejo.capitulo) || 0;
 
-                    // Si hay nuevo capítulo, mover al inicio y marcar como no leído + isUpdated
-                    if (capExcel > capLocal) {
+                    // Detectar nuevo capítulo O cambios de metadata
+                    const hayNuevoCap = capExcel > capLocal;
+                    const cambioMetadata = 
+                        viejo.sumario !== nuevo.sumario ||
+                        viejo.rating !== nuevo.rating ||
+                        viejo.warnings !== nuevo.warnings ||
+                        viejo.titulo !== nuevo.titulo ||
+                        viejo.autor !== nuevo.autor ||
+                        viejo.fandom !== nuevo.fandom ||
+                        viejo.ship !== nuevo.ship;
+
+                    if (hayNuevoCap) {
                         let registro = notis.splice(idxNoti, 1)[0];
                         notis.unshift({ ...registro, ...nuevo, leido: false, isUpdated: true, timestamp: Date.now() });
                         huboCambios = true;
                         console.log(`[Sync] Actualización detectada: ${nuevo.titulo} (Cap ${capLocal} → ${capExcel})`);
+                    } else if (cambioMetadata) {
+                        // Solo metadata cambió (sin nuevo capítulo)
+                        notis[idxNoti] = { ...viejo, ...nuevo, isUpdated: true, timestamp: Date.now() };
+                        huboCambios = true;
+                        console.log(`[Sync] Metadata actualizada: ${nuevo.titulo}`);
                     }
                 }
             });
@@ -104,17 +146,20 @@ async function consultarServidorExcel() {
                 await chrome.storage.local.set({
                     "misNotificaciones": listaFinal,
                     "misSeguidos": seguidos,
-                    "eliminadosIds": eliminados
+                    "eliminadosIds": eliminados,
+                    "lastSyncTimestamp": Date.now()
                 });
 
                 chrome.runtime.sendMessage({ action: "refrescar_interfaz_ao3" }).catch(() => {});
                 console.log("[Background] Sincronización finalizada con cambios.");
             } else {
-                console.log("[Background] Sincronización finalizada: Sin novedades.");
+         // Guardar timestamp aunque no haya cambios
+            await chrome.storage.local.set({ "lastSyncTimestamp": Date.now() });
+            console.log("[Background] Sincronización finalizada: Sin novedades.");
             }
         }
-    } catch (e) { 
-        console.error("[Background] Error en Sync:", e); 
+    } catch (e) {
+        console.error("[Background] Error en Sync:", e);
     }
 }
 
@@ -133,10 +178,12 @@ chrome.storage.onChanged.addListener((changes, area) => {
     }
 });
 
+// Sync cada 5 minutos = 12 veces por hora
+// Backup completo cada 1 hora (cada 12 syncs)
 chrome.alarms.create("syncAO3", { periodInMinutes: 5 });
-chrome.alarms.onAlarm.addListener(a => { 
-    if(a.name === "syncAO3") consultarServidorExcel(); 
-}); 
+chrome.alarms.onAlarm.addListener(a => {
+    if(a.name === "syncAO3") consultarServidorExcel();
+});
 
 chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
     if (m.action === 'sync_now') consultarServidorExcel();
