@@ -7,8 +7,7 @@
   "permissions": [
     "storage",
     "alarms",
-    "notifications",
-    "action"
+    "notifications"
   ],
 
   "host_permissions": [
