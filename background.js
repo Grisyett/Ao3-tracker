@@ -3,20 +3,21 @@
 // Contador de sincronizaciones (para backup periódico)
 let syncCounter = 0;
 const SYNC_PARA_BACKUP = 12; // Cada 12 syncs = 60 minutos (1 hora)
+const MAX_RETRIES = 2; // Reintentos ante fallos de red
 
 async function consultarServidorExcel() {
     syncCounter++;
-    
+
     const data = await chrome.storage.local.get([
-        'webAppUrl', 
-        'misNotificaciones', 
-        'misSeguidos', 
+        'webAppUrl',
+        'misNotificaciones',
+        'misSeguidos',
         'eliminadosIds',
         'lastSyncTimestamp'
     ]);
-    
+
     if (!data.webAppUrl) {
-        console.warn("[Background] No hay URL de Web App configurada.");
+        console.warn("[Background] No hay URL de Web App configurada. Ve a Configuración para establecerla.");
         return;
     }
 
@@ -25,17 +26,40 @@ async function consultarServidorExcel() {
         const forzarFull = syncCounter % SYNC_PARA_BACKUP === 0;
         const lastSync = forzarFull ? 0 : (data.lastSyncTimestamp || 0);
         const modo = forzarFull ? 'full' : 'incremental';
-        
+
         if (forzarFull) {
             console.log(`[Background] === SYNC COMPLETO DE BACKUP #${syncCounter} ===`);
             syncCounter = 0; // Resetear contador
         } else {
             console.log(`[Background] Sync incremental desde ${new Date(lastSync).toLocaleString()}`);
         }
-        
+
         // Sync incremental: solo trae cambios desde última sincronización
         const url = `${data.webAppUrl}?sync=${modo}&since=${lastSync}`;
-        const res = await fetch(url);
+        
+        // Fetch con retry básico para errores de red
+        let res;
+        let lastError;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                res = await fetch(url);
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
+                break; // Éxito, salir del loop de reintentos
+            } catch (err) {
+                lastError = err;
+                console.warn(`[Background] Intento ${attempt + 1} fallido: ${err.message}`);
+                if (attempt < MAX_RETRIES) {
+                    await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // Backoff exponencial
+                }
+            }
+        }
+        
+        if (!res || !res.ok) {
+            throw new Error(`Fetch fallido después de ${MAX_RETRIES + 1} intentos: ${lastError?.message || 'Error desconocido'}`);
+        }
+        
         const result = await res.json();
 
         if (result && result.fics) {

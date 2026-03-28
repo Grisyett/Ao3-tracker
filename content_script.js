@@ -71,6 +71,12 @@ async function scrapearDatosFic(ficId) {
     const baseUrl = `https://archiveofourown.org/works/${ficId}?view_adult=true`;
     try {
         const respuesta = await fetch(baseUrl);
+        
+        if (!respuesta.ok) {
+            console.error(`[Scraper] Error HTTP ${respuesta.status} para fic ${ficId}`);
+            return null;
+        }
+        
         const htmlTexto = await respuesta.text();
         const parser = new DOMParser();
         const docPrincipal = parser.parseFromString(htmlTexto, 'text/html');
@@ -78,7 +84,7 @@ async function scrapearDatosFic(ficId) {
         const titulo = docPrincipal.querySelector("h2.title.heading")?.textContent.trim() || "Sin título";
         const autor = docPrincipal.querySelector("a[rel='author'], .byline")?.textContent.trim() || "Anonymous";
         const fandom = docPrincipal.querySelector("dd.fandom.tags")?.textContent.trim() || "N/A";
-        
+
         const sumarioElemento = docPrincipal.querySelector(".summary blockquote") || docPrincipal.querySelector(".summary .userstuff");
         const sumarioRaw = sumarioElemento?.innerHTML
             .replace(/<br\s*\/?>/gi, "\n")
@@ -97,7 +103,10 @@ async function scrapearDatosFic(ficId) {
             ship: docPrincipal.querySelector("dd.relationship.tags")?.textContent.trim() || "None",
             url: baseUrl.split('?')[0]
         };
-    } catch (e) { return null; }
+    } catch (e) {
+        console.error(`[Scraper] Error al scrapear fic ${ficId}:`, e.message);
+        return null;
+    }
 }
 
 /**
