@@ -1,0 +1,59 @@
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies (if using npm/yarn for any tooling)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs (if any)
+dist/
+build/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Chrome Extension specific
+# (Keep manifest.json, but ignore any build artifacts)
+*.zip
+*.crx
+
+# Google Apps Script local backups (if using clasp or manual downloads)
+*.gs.bak
+appsscript.json
+
+# Documentation (generated/maintenance files)
+CAMBIOS_REALIZADOS.md
+CHANGELOG.md
+ARCHITECTURE.md
+
+# Test files (if added later)
+coverage/
+.nyc_output/
+
+
