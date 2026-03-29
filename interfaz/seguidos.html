@@ -1,60 +1,56 @@
-<link rel="stylesheet" href="style.css">
 
-<li id="li-tracker-ao3" class="dropdown tema-seguidos">
-    <a href="#">Tracker AO3</a>
-    <ul class="menu dropdown-menu">
-        
-        <li class="heading heading-tracker">Mis Fics Seguidos</li>
+<div x-data="trackerApp">
+    <li class="heading heading-tracker">Mis Fics Seguidos</li>
 
-        <li class="action-bar action-bar-top">
-            <a href="#" class="nav-btn-notis nav-link nav-link-red">Notificaciones</a>
-            <a href="#" class="nav-btn-seguidos nav-link" style="color: #2b580c !important; font-weight: bold;">Seguidos</a>
-            <a href="#" class="nav-btn-config nav-link nav-link-gray">⚙️ Config</a>
-        </li>
+    <li class="action-bar action-bar-top">
+        <a href="#" @click.prevent="navNotificaciones" class="nav-link nav-link-red">Notificaciones</a>
+        <a href="#" class="nav-link" style="color: #2b580c !important; font-weight: bold;">Seguidos</a>
+        <a href="#" @click.prevent="navConfig" class="nav-link nav-link-gray">⚙️ Config</a>
+    </li>
 
-        <div id="lista-notificaciones">
-            <li class="loading-text" style="padding:20px; text-align:center; color:#999; list-style:none;">
-                Cargando seguidos...
-            </li>
-        </div>
+    <div id="lista-notificaciones">
+        <template x-if="loading">
+            <li style="padding:20px; text-align:center; color:#999; list-style:none;">Cargando seguidos...</li>
+        </template>
 
-        <li class="action-bar action-bar-bottom">
-            <a href="#" class="nav-btn-notis nav-link nav-link-red">Notificaciones</a>
-            <a href="#" class="nav-btn-config nav-link nav-link-gray">⚙️ Config</a>
-        </li>
-
-        <li class="footer-tracker">
-            AO3 Tracker<br>
-            <span style="opacity:0.8; font-size:10px;">© 2026 Griyo.</span>
-        </li>
-
-        <div id="molde-contenedor" class="hidden-template">
-    <li class="fic-notif-item">
-        <div class="fic-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;">
-            
-            <a href="#" class="fic-link" target="_blank" style="flex: 1; font-weight: bold; text-decoration: none; color: #900;"></a>
-            
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                <span class="fic-cap" style="background: #2b580c; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; white-space: nowrap;"></span>
-                
-                <div class="progreso-seguidos" style="font-size: 10px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
-                    <span class="txt-leido-hasta" style="color: #000000; font-weight: bold; margin-top: 8px;"></span>
-                    <span class="txt-pendientes"></span>
+        <template x-for="(fic, index) in registros" :key="fic.ficId + '-' + index">
+            <li class="fic-notif-item" :class="fic.isUpdated ? 'is-new' : ''">
+                <div class="fic-header">
+                    <a :href="fic.url || '#'" x-text="fic.titulo" class="fic-link" target="_blank" style="color: #580c0c !important;"></a>
+                    
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                        <span class="fic-cap" x-text="'Cap: ' + fic.capitulo" style="background: #2b580c;"></span>
+                        <div class="progreso-seguidos" style="font-size: 10px; display: flex; align-items: center; gap: 5px;">
+                            <span x-text="'Leído: ' + (fic.ultimoLeido || 0)" style="color: #000; font-weight: bold;"></span>
+                            <span x-text="(fic.capitulo - (fic.ultimoLeido || 0)) > 0 ? (fic.capitulo - (fic.ultimoLeido || 0)) + ' pdt.' : '✓ Al día'"
+                                  :style="(fic.capitulo - (fic.ultimoLeido || 0)) > 0 ? 'color: #900; font-weight: bold;' : 'color: #2b580c; font-weight: bold;'">
+                            </span>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="fic-actions" style="margin-top: 2px;">
-            <a href="#" class="btn-detalles btn-fic">Detalles</a>
-            <a href="#" class="btn-eliminar btn-fic">Dejar de seguir</a>
-        </div>
+                
+                <div class="fic-actions">
+                    <a @click.prevent="toggleDetalles(fic, index)" class="btn-detalles btn-fic">Detalles</a>
+                    <a @click.prevent="marcarLeido(fic, index)" class="btn-leer btn-fic" style="color: #2b580c !important;">Marcar leído</a>
+                    <a @click.prevent="eliminar(fic, index)" class="btn-eliminar btn-fic">Dejar de seguir</a>
+                </div>
 
-        <div class="fic-info-extra">
-            <div class="info-line"><strong>Fandom:</strong> <span class="txt-fandom"></span></div>
-            <div class="info-line"><strong>RelacionShip:</strong> <span class="txt-ship"></span></div>
-            <div class="txt-sumario"></div>
-        </div>
+                <div x-show="idFicAbierto == (fic.ficId + '-' + index)" class="fic-info-extra">
+                    <div class="info-line"><strong>Fandom:</strong> <span x-text="fic.fandom || 'N/A'"></span></div>
+                    <div class="info-line"><strong>Relationship:</strong> <span x-text="fic.ship || 'N/A'"></span></div>
+                    
+                    <div class="txt-sumario" x-text="fic.sumario || 'Sin sumario.'"></div>
+                </div>
+            </li>
+        </template>
+        
+        <template x-if="!loading && registros.length === 0">
+            <li style="padding:20px; color:#999; text-align:center; list-style:none;">No estás siguiendo ningún fic.</li>
+        </template>
+    </div>
+
+    <li class="footer-tracker">
+        AO3 Tracker<br>
+        <span style="opacity:0.8; font-size:10px;">© 2026 Griyo.</span>
     </li>
 </div>
-    </ul>
-</li>

@@ -1,52 +1,46 @@
-<link rel="stylesheet" href="style.css">
+<div x-data="trackerApp">
+    <li class="heading heading-tracker" x-text="esSeguidos ? 'Mis Fics Seguidos' : 'Notificaciones'"></li>
 
-<li id="li-tracker-ao3" class="dropdown">
-    <a href="#">Tracker AO3</a>
-    <ul class="menu dropdown-menu">
-        
-        <li class="heading heading-tracker">Notificaciones</li>
+    <li class="action-bar action-bar-top">
+        <a href="#" @click.prevent="navNotificaciones" class="nav-link nav-link-red" :style="!esSeguidos ? 'font-weight:bold' : ''">Notificaciones</a>
+        <a href="#" @click.prevent="navSeguidos" class="nav-link nav-link-red" :style="esSeguidos ? 'font-weight:bold' : ''">Seguidos</a>
+        <a href="#" @click.prevent="navConfig" class="nav-link nav-link-gray">⚙️ Config</a>
+    </li>
 
-        <li class="action-bar action-bar-top">
-            <a href="#" class="nav-btn-notis nav-link nav-link-red">Notificaciones</a>
-            <a href="#" class="nav-btn-seguidos nav-link nav-link-red">Seguidos</a>
-            <a href="#" class="nav-btn-config nav-link nav-link-gray">⚙️ Config</a>
-        </li>
+    <div id="lista-notificaciones">
+        <template x-if="loading">
+            <li style="padding:20px; text-align:center; color:#999; list-style:none;">Cargando...</li>
+        </template>
 
-        <div id="lista-notificaciones">
-            <li class="loading-text" style="padding:20px; text-align:center; color:#999; list-style:none;">
-                Cargando...
-            </li>
-        </div>
-
-        <li class="action-bar action-bar-bottom">
-            <a href="#" class="nav-btn-seguidos nav-link nav-link-red">Seguidos</a>
-            <a href="#" class="nav-btn-config nav-link nav-link-gray">⚙️ Config</a>
-        </li>
-
-        <li class="footer-tracker">
-            AO3 Tracker<br>
-            <span style="opacity:0.8; font-size:10px;">© 2026 Griyo.</span>
-        </li>
-
-        <div id="molde-contenedor" class="hidden-template">
-            <li class="fic-notif-item">
+        <template x-for="(fic, index) in registros" :key="fic.ficId + '-' + index">
+            <li class="fic-notif-item" :class="fic.isUpdated ? 'is-new' : ''" :style="fic.leido ? 'opacity: 0.6' : ''">
                 <div class="fic-header">
-                    <a href="#" class="fic-link" target="_blank"></a>
-                    <span class="fic-cap"></span>
+                    <a :href="fic.url || '#'" x-text="fic.titulo" class="fic-link" target="_blank"></a>
+                    <span class="fic-cap" x-text="'Cap: ' + fic.capitulo"></span>
                 </div>
                 
                 <div class="fic-actions">
-                    <a href="#" class="btn-detalles btn-fic">Detalles</a>
-                    <a href="#" class="btn-leer btn-fic">Marcar</a>
-                    <a href="#" class="btn-eliminar btn-fic">Quitar</a>
+                    <a @click.prevent="toggleDetalles(fic, index)" class="btn-detalles btn-fic">Detalles</a>
+                    <a @click.prevent="marcarLeido(fic, index)" class="btn-leer btn-fic" x-text="fic.leido ? 'Leído ✅' : 'Marcar'"></a>
+                    <a @click.prevent="eliminar(fic, index)" class="btn-eliminar btn-fic">Quitar</a>
                 </div>
 
-                <div class="fic-info-extra">
-                    <div class="info-line"><strong>Fandom:</strong> <span class="txt-fandom"></span></div>
-                    <div class="info-line"><strong>RelacionShip:</strong> <span class="txt-ship"></span></div>
-                    <div class="txt-sumario"></div>
+                <div x-show="idFicAbierto == (fic.ficId + '-' + index)" class="fic-info-extra">
+                    <div class="info-line"><strong>Fandom:</strong> <span x-text="fic.fandom || 'N/A'"></span></div>
+                    <div class="info-line"><strong>Relationship:</strong> <span x-text="fic.ship || 'N/A'"></span></div>
+                    
+                    <div class="txt-sumario"><span x-text="fic.sumario || 'Sin sumario.'"></span></div>
                 </div>
             </li>
-        </div>
-    </ul>
-</li>
+        </template>
+
+        <template x-if="!loading && registros.length === 0">
+            <li style="padding:20px; color:#999; text-align:center; list-style:none;">Bandeja vacía.</li>
+        </template>
+    </div>
+
+    <li class="footer-tracker">
+        AO3 Tracker<br>
+        <span style="opacity:0.8; font-size:10px;">© 2026 Griyo.</span>
+    </li>
+</div>

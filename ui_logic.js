@@ -1,270 +1,149 @@
-// ui_logic.js
-console.log("AO3 Tracker: ui_logic.js cargado.");
+// ui_logic.js - Gestión de Interfaz y Sincronización Excel
 
-window.idFicAbierto = null; 
+let trackerAppRegistered = false;
 
-// ---  DETECCIÓN DE ENTORNO ---
-document.addEventListener('DOMContentLoaded', () => {
-    const urlInput = document.getElementById('urlInput');
-    const saveBtn = document.getElementById('saveBtn');
+window.setupTrackerApp = () => ({
+    registros: [],
+    esSeguidos: false,
+    idFicAbierto: null,
+    loading: true,
 
-    if (urlInput && saveBtn) {
-        inicializarConfiguracion(urlInput, saveBtn);
-    } else {
-        vincularNavegacion();
-        window.recuperarYMostrarNotificaciones();
+    async init() {
+        const contenedorRaiz = document.getElementById('li-tracker-ao3');
+        this.esSeguidos = contenedorRaiz ? contenedorRaiz.classList.contains('tema-seguidos') : false;
+        await this.cargarDatos();
+
+        // Lógica de desvanecimiento de borde para nuevos/actualizados (5 segundos)
+        // Aplica tanto para notificaciones como para seguidos
+        this.aplicarDesvanecimiento();
+
+        chrome.storage.onChanged.addListener((changes, area) => {
+            const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
+            if (area === 'local' && changes[key]) {
+                let nuevaLista = changes[key].newValue || [];
+                if (this.esSeguidos) {
+                    nuevaLista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                }
+                this.registros = nuevaLista;
+
+                // Re-aplicar el temporizador de desvanecimiento cuando hay cambios
+                this.aplicarDesvanecimiento();
+            }
+        });
+
+        // En seguidos y notificaciones: quitar flag isUpdated después de 5 segundos
+        setTimeout(async () => {
+            const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
+            const res = await chrome.storage.local.get([key]);
+            let lista = res[key] || [];
+            let huboCambios = false;
+            lista.forEach(fic => {
+                if (fic.isUpdated) {
+                    fic.isUpdated = false;
+                    huboCambios = true;
+                }
+            });
+            if (huboCambios) {
+                await chrome.storage.local.set({ [key]: lista });
+            }
+        }, 5000);
+    },
+
+    aplicarDesvanecimiento() {
+        setTimeout(() => {
+            const elementosNuevos = document.querySelectorAll('.fic-notif-item.is-new');
+            elementosNuevos.forEach(el => el.classList.add('fade-border'));
+        }, 5000);
+    },
+
+    async cargarDatos() {
+        this.loading = true;
+        const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
+        const data = await chrome.storage.local.get(key);
+        let lista = Array.isArray(data[key]) ? data[key] : [];
+
+        // Si estamos en la pestaña de seguidos, ordenamos por timestamp antes de mostrar
+        if (this.esSeguidos) {
+            lista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        }
+
+        this.registros = lista;
+        this.loading = false;
+    },
+
+    navNotificaciones() { if (window.cargarInterfaz) window.cargarInterfaz('notificaciones'); },
+    navSeguidos() { if (window.cargarInterfaz) window.cargarInterfaz('seguidos'); },
+    navConfig() { chrome.runtime.sendMessage({ action: 'open_config' }); },
+
+    toggleDetalles(fic, index) {
+        const llave = `${fic.ficId}-${index}`;
+        this.idFicAbierto = (this.idFicAbierto === llave) ? null : llave;
+    },
+
+    async eliminar(fic, index) {
+        if (!confirm(`¿Eliminar "${fic.titulo}"?`)) return;
+        const key = this.esSeguidos ? "misSeguidos" : "misNotificaciones";
+        const res = await chrome.storage.local.get([key, 'eliminadosIds', 'webAppUrl']);
+        
+        let lista = Array.isArray(res[key]) ? res[key] : [];
+        lista = lista.filter(f => String(f.ficId) !== String(fic.ficId));
+
+        if (!this.esSeguidos) {
+            let eliminados = Array.isArray(res.eliminadosIds) ? res.eliminadosIds : [];
+            if (!eliminados.includes(fic.ficId)) eliminados.push(fic.ficId);
+            await chrome.storage.local.set({ "misNotificaciones": lista, "eliminadosIds": eliminados });
+        } else {
+            await chrome.storage.local.set({ "misSeguidos": lista });
+            // Notificar al Excel
+            if (res.webAppUrl) {
+                fetch(res.webAppUrl, {
+                    method: "POST", mode: "no-cors",
+                    body: JSON.stringify({ action: "dejar_de_seguir", ficId: fic.ficId })
+                });
+            }
+        }
+    },
+
+    async marcarLeido(fic, index) {
+        if (this.esSeguidos) {
+            await window.actualizarProgresoLectura(fic.ficId, fic.capitulo);
+        } else {
+            const res = await chrome.storage.local.get('misNotificaciones');
+            let notis = res.misNotificaciones || [];
+            const idx = notis.findIndex(f => String(f.ficId) === String(fic.ficId));
+            if (idx !== -1) {
+                notis[idx].leido = !notis[idx].leido;
+                await chrome.storage.local.set({ 'misNotificaciones': notis });
+            }
+        }
     }
 });
 
-chrome.runtime.onMessage.addListener((request) => {
-    if (request.action === "refrescar_interfaz_ao3") {
-        window.recuperarYMostrarNotificaciones();
+// Función global para actualizar progreso (Excel + Local)
+window.actualizarProgresoLectura = async (ficId, capitulo) => {
+    const res = await chrome.storage.local.get(['misSeguidos', 'webAppUrl']);
+    let seguidos = res.misSeguidos || [];
+    const idx = seguidos.findIndex(f => String(f.ficId) === String(ficId));
+    
+    if (idx !== -1) {
+        seguidos[idx].ultimoLeido = capitulo;
+        await chrome.storage.local.set({ 'misSeguidos': seguidos });
+        
+        if (res.webAppUrl) {
+            fetch(res.webAppUrl, {
+                method: "POST", mode: "no-cors",
+                body: JSON.stringify({ action: "actualizar_progreso", ficId: ficId, ultimoLeido: capitulo })
+            }); 
+        }
+        alert(`✅ Guardado hasta cap. ${capitulo}`);
     }
-});
+};
 
-// ---  LÓGICA DE CONFIGURACIÓN ---
-function inicializarConfiguracion(input, boton) {
-    const status = document.getElementById('status');
-    chrome.storage.local.get("webAppUrl", (data) => {
-        if (data.webAppUrl) input.value = data.webAppUrl;
-    });
-
-    boton.onclick = (e) => {
-        e.preventDefault();
-        const url = input.value.trim();
-        if (url.startsWith("https://script.google.com/")) {
-            chrome.storage.local.set({ "webAppUrl": url }, () => {
-                status.innerText = "✅ URL guardada correctamente.";
-                status.style.color = "green";
-            });
-        } else {
-            status.innerText = "❌ URL no válida.";
-            status.style.color = "red";
-        }
-    };
-}
-
-// ---  NAVEGACIÓN ---
-function vincularNavegacion() {
-    const btnNotis = document.querySelectorAll('.nav-btn-notis');
-    const btnSeguidos = document.querySelectorAll('.nav-btn-seguidos');
-    const btnConfig = document.querySelectorAll('.nav-btn-config');
-
-    btnNotis.forEach(btn => {
-        btn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof window.cargarInterfaz === 'function') window.cargarInterfaz('notificaciones');
-        };
-    });
-
-    btnSeguidos.forEach(btn => {
-        btn.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof window.cargarInterfaz === 'function') window.cargarInterfaz('seguidos');
-        };
-    });
-
-    btnConfig.forEach(btn => {
-        btn.onclick = (e) => {
-            e.preventDefault();
-            const configUrl = chrome.runtime.getURL('interfaz/configuracion.html');
-            window.open(configUrl, '_blank');
-        };
-    });
-}
-
-// ---  RENDERIZADO DE LISTA ---
-window.renderizarLista = function(fics, esSeguidos = false) {
-    const contenedor = document.getElementById('lista-notificaciones');
-    const molde = document.getElementById('molde-contenedor');
-    
-    if (!contenedor || !molde) return;
-    contenedor.innerHTML = '';
-
-    if (!fics || fics.length === 0) {
-        contenedor.innerHTML = `<li style="padding:20px; color:#999; text-align:center; list-style:none;">No hay registros en ${esSeguidos ? 'Seguidos' : 'Notificaciones'}.</li>`;
-        return;
+window.registrarComponenteAlpine = () => {
+    if (window.Alpine && !trackerAppRegistered) {
+        window.Alpine.data('trackerApp', window.setupTrackerApp);
+        trackerAppRegistered = true;
     }
-
-    fics.forEach((fic, index) => {
-        const instancia = molde.cloneNode(true);
-        instancia.classList.remove('hidden-template');
-        instancia.style.display = "block";
-        instancia.id = '';
-
-        // Título y Enlace
-        const link = instancia.querySelector('.fic-link');
-        link.textContent = fic.titulo || "Sin título";
-        link.href = fic.url || fic.urlCapitulo || "#";
-
-        // Variables de capítulos
-        const capTotal = parseInt(fic.capitulo || fic.numCapitulo || 0);
-        const ultimoLeido = parseInt(fic.ultimoLeido || 0);
-        const pendientes = capTotal - ultimoLeido;
-        const llaveUnicaItem = capTotal > 0 ? `${fic.ficId}-${capTotal}` : `${fic.ficId}-inbox-${index}`;
-
-        //LÓGICA DE ELEMENTOS 
-        const spanCap = instancia.querySelector('.fic-cap'); 
-        const panelProgreso = instancia.querySelector('.progreso-seguidos'); 
-        const txtLeido = instancia.querySelector('.txt-leido-hasta');
-        const txtPendientes = instancia.querySelector('.txt-pendientes'); 
-
-        if (esSeguidos && panelProgreso) {
-            spanCap.textContent = `Cap: ${capTotal}`; 
-            panelProgreso.style.display = 'flex';
-            
-            if (txtLeido) txtLeido.textContent = `Leído: ${ultimoLeido}/${capTotal}`; 
-            
-            if (txtPendientes) { 
-                if (pendientes > 0) {
-                    txtPendientes.textContent = `${pendientes} pdt.`;
-                    txtPendientes.style.cssText = "background: #900; color: #fff; padding: 1px 6px; border-radius: 10px; font-weight: bold; font-size: 10px; margin-left: 5px;";
-                } else {
-                    txtPendientes.textContent = "✓ Al día";
-                    txtPendientes.style.cssText = "color: #2b580c; font-weight: bold; font-size: 10px; margin-left: 5px;";
-                }
-            }
-        } else {
-            
-            if (spanCap) spanCap.textContent = capTotal > 0 ? `Cap: ${capTotal}` : `Comentario`;
-            if (panelProgreso) panelProgreso.style.display = 'none';
-        }
-
-        // Metadatos y Acordeón
-        instancia.querySelector('.txt-fandom').textContent = fic.fandom || "N/A";
-        instancia.querySelector('.txt-ship').textContent = fic.ship || "N/A";
-        instancia.querySelector('.txt-sumario').textContent = fic.sumario || "Sin sumario disponible.";
-
-        const panel = instancia.querySelector('.fic-info-extra');
-        panel.style.display = (window.idFicAbierto === llaveUnicaItem) ? 'block' : 'none';
-
-        instancia.querySelector('.btn-detalles').onclick = (e) => {
-            e.preventDefault();
-            window.idFicAbierto = (window.idFicAbierto === llaveUnicaItem) ? null : llaveUnicaItem;
-            window.renderizarLista(fics, esSeguidos);
-        };
-
-        // Botones de Acción
-        const btnEliminar = instancia.querySelector('.btn-eliminar') || instancia.querySelector('.btn-quitar-seguido');
-        if (btnEliminar) {
-            btnEliminar.onclick = (e) => {
-                e.preventDefault();
-                if(confirm("¿Eliminar este registro?")) {
-                    window.eliminarDato(fic.ficId, esSeguidos ? "misSeguidos" : "misNotificaciones", capTotal, index);
-                }
-            };
-        }
-
-        const btnLeer = instancia.querySelector('.btn-leer');
-        if (btnLeer) {
-            if (esSeguidos) {
-                btnLeer.textContent = "Marcar leído";
-                btnLeer.onclick = (e) => {
-                    e.preventDefault();
-                    window.actualizarProgresoLectura(fic.ficId, capTotal);
-                };
-            } else {
-                if (fic.leido) {
-                    instancia.style.opacity = '0.6';
-                    btnLeer.textContent = "Leído ✅";
-                }
-                btnLeer.onclick = (e) => {
-                    e.preventDefault();
-                    window.actualizarEstadoLeido(fic.ficId, capTotal, !fic.leido, index);
-                };
-            }
-        }
-        contenedor.appendChild(instancia);
-    });
 };
-
-// PERSISTENCIA
-window.recuperarYMostrarNotificaciones = function() {
-    
-    const esPestañaSeguidos = !!document.querySelector('.tema-seguidos');
-    const storageKey = esPestañaSeguidos ? "misSeguidos" : "misNotificaciones";
-
-    chrome.storage.local.get([storageKey], (data) => {
-        const lista = data[storageKey] || [];
-        window.renderizarLista(lista, esPestañaSeguidos);
-    });
-};
-window.eliminarDato = function(id, storageKey, numCap, index) {
-    // Pedimos también 'eliminadosIds' al storage
-    chrome.storage.local.get([storageKey, "webAppUrl", "eliminadosIds"], (data) => {
-        let lista = data[storageKey] || [];
-        let eliminados = data.eliminadosIds || [];
-
-        if (storageKey === "misNotificaciones") {
-            // 1. Si es una notificación, lo añadimos a la lista negra
-            if (!eliminados.includes(id)) {
-                eliminados.push(id);
-            }
-            // 2. Lo quitamos de la vista actual
-            lista.splice(index, 1);
-            
-            // 3. Guardamos ambos cambios
-            chrome.storage.local.set({ 
-    "misNotificaciones": lista, 
-    "eliminadosIds": eliminados 
-}, () => {
-    // --- LOG DE DEPURACIÓN ---
-    console.log("ID añadido a la Lista Negra:", id);
-    console.log("Estado actual de eliminadosIds:", eliminados);
-    
-    window.recuperarYMostrarNotificaciones();
-    chrome.runtime.sendMessage({ action: "actualizar_badge_manual" });
-});
-
-        } else {
-            // Lógica normal para Seguidos (Dejar de seguir)
-            lista = lista.filter(f => f.ficId != id);
-            chrome.storage.local.set({ [storageKey]: lista }, () => {
-                window.recuperarYMostrarNotificaciones();
-                if (data.webAppUrl) {
-                    fetch(data.webAppUrl, {
-                        method: "POST", 
-                        mode: "no-cors",
-                        body: JSON.stringify({ action: "dejar_de_seguir", ficId: id })
-                    });
-                }
-                chrome.runtime.sendMessage({ action: "actualizar_badge_manual" });
-            });
-        }
-    });
-};
-
-window.actualizarEstadoLeido = function(id, numCap, nuevoEstado, index) {
-    chrome.storage.local.get("misNotificaciones", (data) => {
-        let lista = data.misNotificaciones || [];
-        // Usamos el index que nos llega del botón
-        if (lista[index]) {
-            lista[index].leido = nuevoEstado;
-            chrome.storage.local.set({ "misNotificaciones": lista }, () => {
-                window.recuperarYMostrarNotificaciones();
-                chrome.runtime.sendMessage({ action: "actualizar_badge_manual" });
-            });
-        }
-    });
-};
-
-window.actualizarProgresoLectura = function(id, numCap) {
-    chrome.storage.local.get(["misSeguidos", "webAppUrl"], (data) => {
-        let seguidos = data.misSeguidos || [];
-        let index = seguidos.findIndex(f => f.ficId == id);
-        if (index !== -1) {
-            seguidos[index].ultimoLeido = numCap;
-            chrome.storage.local.set({ "misSeguidos": seguidos }, () => {
-                window.recuperarYMostrarNotificaciones();
-                if (data.webAppUrl) {
-                    fetch(data.webAppUrl, {
-                        method: "POST", mode: "no-cors",
-                        body: JSON.stringify({ action: "actualizar_progreso", ficId: id, ultimoLeido: numCap })
-                    });
-                }
-            });
-        }
-    });
-};
+window.registrarComponenteAlpine();
+document.addEventListener('alpine:init', window.registrarComponenteAlpine);

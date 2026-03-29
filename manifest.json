@@ -1,40 +1,56 @@
 {
   "manifest_version": 3,
-  "name": "AO3 Tracker Griyo Edition-BETA",
-  "version": "1.3",
+  "name": "AO3 Tracker Griyo Edition",
+  "version": "1.5",
+  "description": "Seguimiento automático de fanfics y notificaciones de nuevos capítulos.",
+  
   "permissions": [
     "storage",
     "alarms",
     "notifications"
   ],
+
   "host_permissions": [
     "https://archiveofourown.org/*",
     "https://script.google.com/*",
     "https://script.googleusercontent.com/*"
   ],
+
   "action": {
-    "default_title": "AO3 Tracker-BETA"
+    "default_title": "Griyo AO3 Tracker"
   },
+
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
+
   "content_scripts": [
     {
       "matches": ["https://archiveofourown.org/*"],
       "css": ["interfaz/style.css"],
-      "js": ["ui_logic.js", "content_script.js"]
+      "js": [
+        "libs/alpine.csp.js", 
+        "ui_logic.js", 
+        "content_script.js"
+      ],
+      "run_at": "document_end"
     }
   ],
+
   "web_accessible_resources": [
     {
       "resources": [
-        "interfaz/notificaciones.html",
-        "interfaz/seguidos.html",
-        "interfaz/configuracion.html",
-        "interfaz/style.css",
-        "ui_logic.js"
+        "interfaz/*.html",
+        "interfaz/*.css",
+        "ui_logic.js",
+        "libs/alpine.csp.js"
       ],
       "matches": ["https://archiveofourown.org/*"]
+    },
+    {
+      "resources": ["interfaz/configuracion.html"],
+      "matches": ["<all_urls>"]
     }
   ]
 }

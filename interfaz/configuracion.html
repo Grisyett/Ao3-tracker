@@ -6,18 +6,36 @@
     body { font-family: sans-serif; padding: 40px; background-color: #f4f4f4; }
     .container { max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 8px; }
     h1 { color: #990000; }
-    input { width: 100%; padding: 10px; margin: 10px 0; }
-    button { background: #990000; color: white; padding: 10px; border: none; width: 100%; cursor: pointer; }
+    input { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+    button { background: #990000; color: white; padding: 10px; border: none; width: 100%; cursor: pointer; border-radius: 4px; }
+    button:hover { background: #770000; }
+    #status { margin-top: 15px; text-align: center; }
+    .success { color: green; }
+    .error { color: red; }
+    .info { background: #e7f3ff; padding: 15px; border-radius: 4px; margin-top: 20px; font-size: 14px; }
+    .info h3 { margin-top: 0; color: #990000; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Configuración AO3 Tracker</h1>
     <p>Pega la URL de tu Web App de Google Sheets:</p>
-    <input type="text" id="urlInput" placeholder="https://script.google.com/...">
+    <input type="text" id="urlInput" placeholder="https://script.google.com/macros/s/.../exec">
     <button id="saveBtn">Guardar y Vincular</button>
     <p id="status"></p>
+    
+    <div class="info">
+      <h3>¿Cómo obtener la URL?</h3>
+      <ol>
+        <li>Abre tu Google Sheet del AO3 Tracker</li>
+        <li>Ve a <strong>Extensiones > Apps Script</strong></li>
+        <li>Haz clic en <strong>Implementar > Nueva implementación</strong></li>
+        <li>Selecciona Tipo: <strong>Aplicación web</strong></li>
+        <li>En "Quién tiene acceso" selecciona: <strong>Cualquiera</strong></li>
+        <li>Copia la URL que termina en <code>/exec</code></li>
+      </ol>
+    </div>
   </div>
-  <script src="../ui_logic.js"></script>
+  <script src="configuracion.js"></script>
 </body>
 </html>
