@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AO3 Tracker Griyo Edition",
-  "version": "1.4",
+  "version": "1.5",
   "description": "Seguimiento automático de fanfics y notificaciones de nuevos capítulos.",
   
   "permissions": [
