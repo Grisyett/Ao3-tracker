@@ -76,7 +76,7 @@ No necesitas programar el backend. Copia la **Plantilla Maestra** que ya incluye
 
 1. **Descargar la Extensión**
    - Clona este repositorio o descarga como ZIP y extrae
-   - O descarga la última release desde la [página de Releases]([https://github.com/Grisyett/Ao3-tracker/releases])
+   - O descarga la última release desde la [página de Releases](https://github.com/Grisyett/Ao3-tracker/releases)
 
 2. **Cargar en Chrome**
    - Abre Chrome y ve a `chrome://extensions/`
